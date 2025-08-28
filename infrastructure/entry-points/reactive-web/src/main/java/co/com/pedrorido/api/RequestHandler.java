@@ -33,7 +33,7 @@ public class RequestHandler {
 
     @Operation(
             summary = "Guardar solicitud",
-            description = "Recibe un objeto UserDTO en el cuerpo de la solicitud, lo procesa y guarda la solicitud. Devuelve la información de la solicitud guardada junto con un mensaje de éxito.",
+            description = "Recibe un objeto CreateRequestDTO en el cuerpo de la solicitud, lo procesa y guarda la solicitud. Devuelve la información de la solicitud guardada junto con un mensaje de éxito.",
             requestBody = @RequestBody(
                     description = "Información de la solicitud a guardar",
                     required = true,
@@ -57,7 +57,7 @@ public class RequestHandler {
                     )
             }
     )
-    public Mono<ResponseEntity<GeneralResponseDTO<RequestResponseDTO>>> listenSaveUser(ServerRequest serverRequest) {
+    public Mono<ResponseEntity<GeneralResponseDTO<RequestResponseDTO>>> listenSaveRequest(ServerRequest serverRequest) {
         return serverRequest.bodyToMono(CreateRequestDTO.class)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Request body is required")))
                 .doOnNext(log::info)

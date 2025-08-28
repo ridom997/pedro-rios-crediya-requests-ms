@@ -19,7 +19,7 @@ public class RouterRest {
             @RouterOperation(
                     path = "/api/v1/solicitud",
                     beanClass = RequestHandler.class,
-                    beanMethod = "listenSaveUser"
+                    beanMethod = "listenSaveRequest"
             )
     })
     public RouterFunction<ServerResponse> routerFunction(RequestHandler requestHandler) {
@@ -27,7 +27,7 @@ public class RouterRest {
                 POST("/api/v1/solicitud")
                         .and(accept(MediaType.APPLICATION_JSON))
                         .and(contentType(MediaType.APPLICATION_JSON)),
-                res -> requestHandler.listenSaveUser(res)
+                res -> requestHandler.listenSaveRequest(res)
                         .flatMap(re -> ServerResponse
                                 .status(re.getStatusCode())
                                 .headers(h -> h.addAll(re.getHeaders()))

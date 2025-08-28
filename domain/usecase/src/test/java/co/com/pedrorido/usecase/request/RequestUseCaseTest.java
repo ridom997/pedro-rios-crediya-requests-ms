@@ -45,6 +45,7 @@ class RequestUseCaseTest {
                 .amount(BigDecimal.valueOf(5000))
                 .term(LocalDate.of(2990, 1, 15))
                 .email("test@example.com")
+                .documentNumber("456789")
                 .build();
 
         // Ejecutamos el método y verificamos
@@ -60,10 +61,38 @@ class RequestUseCaseTest {
     }
 
     @Test
+    void createRequestUserNotFound() {
+        // Configuramos el repositorio para retornar "false"
+        when(loanTypeRepository.loanTypeExistsById(1L))
+                .thenReturn(Mono.just(true));
+        when(userRepository.userExistsByDocumentNumber("456789")).thenReturn(Mono.just(false));
+        // Creamos un DTO de ejemplo
+        CreateRequestDomainDTO requestDTO = CreateRequestDomainDTO.builder()
+                .typeLoanId(1L)
+                .amount(BigDecimal.valueOf(5000))
+                .term(LocalDate.of(2990, 1, 15))
+                .email("test@example.com")
+                .documentNumber("456789")
+                .build();
+
+        // Ejecutamos el método y verificamos
+        StepVerifier.create(requestUseCase.createRequest(requestDTO))
+                .expectErrorMatches(throwable ->
+                        throwable instanceof IllegalStateException &&
+                                throwable.getMessage().equals("user not found")
+                )
+                .verify();
+
+        // Verificamos que `saveRequestDomain` no se llamó
+        verify(requestDomainRepository, never()).saveRequestDomain(any());
+    }
+
+    @Test
     void createRequestSuccess() {
         // Configuramos el repositorio para retornar "true"
         when(loanTypeRepository.loanTypeExistsById(1L))
                 .thenReturn(Mono.just(true));
+        when(userRepository.userExistsByDocumentNumber("456789")).thenReturn(Mono.just(true));
 
         // Configuramos el repositorio para simular el guardado
         when(requestDomainRepository.saveRequestDomain(any(RequestDomain.class)))
@@ -81,6 +110,7 @@ class RequestUseCaseTest {
                 .amount(BigDecimal.valueOf(5000))
                 .term(LocalDate.of(2990, 1, 15))
                 .email("test@example.com")
+                .documentNumber("456789")
                 .build();
 
         // Ejecutamos el método
