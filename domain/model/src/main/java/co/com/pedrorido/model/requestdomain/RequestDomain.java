@@ -10,6 +10,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder(toBuilder = true)
+@ToString
 public class RequestDomain {
     private String id;
     private BigDecimal amount;

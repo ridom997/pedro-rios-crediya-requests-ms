@@ -23,7 +23,7 @@ public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
 
     @Override
     public Mono<RequestDomain> saveRequestDomain(RequestDomain request) {
-        log.info("saveRequestDomain: {}", request);
+        log.info("POSTGRES - saveRequestDomain: {}", request);
         return super.save(request);
     }
 }

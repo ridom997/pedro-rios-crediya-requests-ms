@@ -1,5 +1,6 @@
 package co.com.pedrorido.usecase.request;
 
+import co.com.pedrorido.model.external.gateways.UserRepository;
 import co.com.pedrorido.model.loantype.gateways.LoanTypeRepository;
 import co.com.pedrorido.model.requestdomain.RequestDomain;
 import co.com.pedrorido.model.requestdomain.gateways.RequestDomainRepository;
@@ -20,15 +21,16 @@ class RequestUseCaseTest {
     private LoanTypeRepository loanTypeRepository;
     private RequestDomainRepository requestDomainRepository;
     private RequestUseCase requestUseCase;
+    private UserRepository userRepository;
 
     @BeforeEach
     void setUp() {
         // Mockeamos las dependencias
         loanTypeRepository = mock(LoanTypeRepository.class);
         requestDomainRepository = mock(RequestDomainRepository.class);
-
+        userRepository = mock(UserRepository.class);
         // Creamos instancia de la clase que probaremos
-        requestUseCase = new RequestUseCase(loanTypeRepository, requestDomainRepository);
+        requestUseCase = new RequestUseCase(loanTypeRepository, requestDomainRepository, userRepository);
     }
 
     @Test
