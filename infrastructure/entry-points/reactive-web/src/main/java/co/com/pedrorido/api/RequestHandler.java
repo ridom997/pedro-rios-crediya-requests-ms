@@ -16,6 +16,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import reactor.core.publisher.Mono;
 
@@ -28,9 +29,10 @@ public class RequestHandler {
     private final CreateRequestDTOMapper createRequestDTOMapper;
     private final RequestDTOMapper requestDTOMapper;
     private final RequestUseCase requestUseCase;
+    private final TransactionalOperator tx;
 
     @Operation(
-            summary = "Guardar usuario",
+            summary = "Guardar solicitud",
             description = "Recibe un objeto UserDTO en el cuerpo de la solicitud, lo procesa y guarda la solicitud. Devuelve la información de la solicitud guardada junto con un mensaje de éxito.",
             requestBody = @RequestBody(
                     description = "Información de la solicitud a guardar",
@@ -56,11 +58,11 @@ public class RequestHandler {
             }
     )
     public Mono<ResponseEntity<GeneralResponseDTO<RequestResponseDTO>>> listenSaveUser(ServerRequest serverRequest) {
-        log.info("Request received");
         return serverRequest.bodyToMono(CreateRequestDTO.class)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Request body is required")))
+                .doOnNext(log::info)
                 .map(createRequestDTOMapper::toDomain)
-                .flatMap(requestUseCase::createRequest)
+                .flatMap(createRequestDTO -> requestUseCase.createRequest(createRequestDTO).as(tx::transactional))
                 .map(requestDTOMapper::toDto)
                 .map(savedRequestDto -> {
                     HashMap<String, RequestResponseDTO> data = new HashMap<>();
@@ -72,6 +74,8 @@ public class RequestHandler {
                                     .data(data)
                                     .build(),
                             HttpStatus.CREATED);
-                }).doOnSuccess(log::info);
+                })
+                .doOnSuccess(log::info)
+                .doOnError(log::error);
     }
 }
