@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,7 @@ public class RequestHandler {
     @Operation(
             summary = "Guardar solicitud",
             description = "Recibe un objeto CreateRequestDTO en el cuerpo de la solicitud, lo procesa y guarda la solicitud. Devuelve la información de la solicitud guardada junto con un mensaje de éxito.",
+            security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @RequestBody(
                     description = "Información de la solicitud a guardar",
                     required = true,

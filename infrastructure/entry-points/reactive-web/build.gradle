@@ -8,4 +8,7 @@ dependencies {
     annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
     implementation "org.springdoc:springdoc-openapi-starter-webflux-ui:$swaggerVersion"
     implementation "org.springframework:spring-tx"
+    implementation "org.springframework.boot:spring-boot-starter-security"
+    implementation "org.springframework.security:spring-security-oauth2-jose"
+    implementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server" // Bearer
 }
