@@ -3,7 +3,6 @@ package co.com.pedrorido.api.dto;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 @Data
 @AllArgsConstructor
@@ -14,8 +13,8 @@ import java.time.LocalDate;
 public class RequestResponseDTO {
     private String id;
     private BigDecimal amount;
-    private LocalDate term;
+    private Integer term;
     private String email;
-    private String statusId;
+    private Long statusId;
     private Long typeLoanId;
 }
