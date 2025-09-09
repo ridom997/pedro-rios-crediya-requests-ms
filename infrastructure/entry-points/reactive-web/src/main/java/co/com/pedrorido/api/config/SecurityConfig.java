@@ -46,6 +46,7 @@ public class SecurityConfig {
                 .authorizeExchange(ex -> ex
                         .pathMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .pathMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/solicitud").hasRole("ADMIN")
                         .pathMatchers(HttpMethod.POST, "/api/v1/solicitud").hasRole("CLIENTE")
 
                         .anyExchange().authenticated()

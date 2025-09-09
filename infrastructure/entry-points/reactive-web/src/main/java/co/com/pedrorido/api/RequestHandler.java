@@ -5,8 +5,12 @@ import co.com.pedrorido.api.dto.GeneralResponseDTO;
 import co.com.pedrorido.api.dto.RequestResponseDTO;
 import co.com.pedrorido.api.mapper.CreateRequestDTOMapper;
 import co.com.pedrorido.api.mapper.RequestDTOMapper;
+import co.com.pedrorido.model.status.Status;
+import co.com.pedrorido.model.utils.StatusEnum;
 import co.com.pedrorido.usecase.request.RequestUseCase;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
@@ -18,10 +22,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.reactive.TransactionalOperator;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static java.util.Arrays.stream;
 
 @Component
 @RequiredArgsConstructor
@@ -80,4 +91,66 @@ public class RequestHandler {
                 .doOnSuccess(log::info)
                 .doOnError(log::error);
     }
+
+
+    @Operation(
+            summary = "Listar solicitudes",
+            description = "Obtiene una lista de solicitudes basándose en los parámetros proporcionados en la consulta. Devuelve los detalles de las solicitudes encontradas o un mensaje de error si ocurre algún problema.",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            method = "GET",
+            parameters = {
+                    @Parameter(
+                            name = "page",
+                            description = "Número de página para la paginación (opcional)",
+                            in = ParameterIn.QUERY,
+                            required = false,
+                            schema = @Schema(type = "integer", defaultValue = "0")
+                    ),
+                    @Parameter(
+                            name = "size",
+                            description = "Tamaño de página para la paginación (opcional)",
+                            in = ParameterIn.QUERY,
+                            required = false,
+                            schema = @Schema(type = "integer", defaultValue = "10")
+                    )
+            },
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Lista de solicitudes obtenida con éxito.",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = GeneralResponseDTO.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "Parámetros de consulta inválidos.",
+                            content = @Content
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "Error interno del servidor.",
+                            content = @Content
+                    )
+            }
+    )
+    public Mono<ServerResponse> listRequests(ServerRequest req) {
+
+        int page = parseIntOrDefault(req.queryParam("page").orElse("0"), 0);
+        int size = parseIntOrDefault(req.queryParam("size").orElse("20"), 10);
+
+        // estado puede venir como ?estado=PENDIENTE&estado=APROBADA o ?estado=PENDIENTE,APROBADA
+        Set<Long> status = req.queryParams().getOrDefault("estado", List.of(StatusEnum.PENDING.getId().toString()))
+                .stream()
+                .flatMap(v -> stream(v.split(",")))
+                .filter(s -> !s.isBlank())
+                .map(Long::valueOf)
+                .collect(Collectors.toSet());
+
+        return requestUseCase.getListByStatus(status, page, size)
+                .flatMap(dto -> org.springframework.web.reactive.function.server.ServerResponse.ok().bodyValue(dto));
+    }
+
+    private static int parseIntOrDefault(String s, int def) {
+        try { return Integer.parseInt(s); } catch (Exception e) { return def; }
+    }
+
 }
