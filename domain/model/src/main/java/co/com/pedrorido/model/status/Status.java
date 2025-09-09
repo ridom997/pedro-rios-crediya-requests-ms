@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder(toBuilder = true)
 public class Status {
-    private String id;
+    private Long id;
     private String name;
     private String description;
 }

@@ -3,7 +3,6 @@ package co.com.pedrorido.model.utils;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -14,6 +13,6 @@ public class CreateRequestDomainDTO {
     private String documentNumber;
     private String email;
     private BigDecimal amount;
-    private LocalDate term;
+    private Integer term;
     private Long typeLoanId;
 }

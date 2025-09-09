@@ -1,23 +1,32 @@
 package co.com.pedrorido.model.utils;
 
 public enum StatusEnum {
-    PENDING("1", "Pendiente de revisión"),
-    APPROVED( "2", "Aprobado"),
-    REJECTED( "3", "Rechazado");
+    PENDING(1L, "Pendiente de revisión"),
+    APPROVED( 2L, "Aprobado"),
+    REJECTED( 3L, "Rechazado");
 
-    private String id;
+    private Long id;
     private String description;
 
-    StatusEnum(String id, String description) {
+    StatusEnum(Long id, String description) {
         this.id = id;
         this.description = description;
     }
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
     public String getDescription() {
         return description;
+    }
+
+    public static StatusEnum fromId(String id) {
+        for (StatusEnum status : StatusEnum.values()) {
+            if (status.getId().equals(id)) {
+                return status;
+            }
+        }
+        return null;
     }
 }

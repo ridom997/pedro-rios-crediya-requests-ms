@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.ServerWebInputException;
 import org.springframework.web.server.WebExceptionHandler;
 import reactor.core.publisher.Mono;
 
@@ -22,7 +23,7 @@ public class GlobalErrorHandler implements WebExceptionHandler {
         HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
         String message = ex.getMessage();
 
-        if (ex instanceof IllegalArgumentException) {
+        if (ex instanceof IllegalArgumentException || ex instanceof ServerWebInputException) {
             status = HttpStatus.BAD_REQUEST;
         } else if (ex instanceof IllegalStateException) {
             status = HttpStatus.CONFLICT;

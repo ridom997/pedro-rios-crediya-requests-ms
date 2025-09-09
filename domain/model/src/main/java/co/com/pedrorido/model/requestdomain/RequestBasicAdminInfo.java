@@ -1,9 +1,8 @@
 package co.com.pedrorido.model.requestdomain;
+
 import lombok.*;
-//import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -11,11 +10,15 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder(toBuilder = true)
 @ToString
-public class RequestDomain {
+public class RequestBasicAdminInfo {
     private String id;
     private BigDecimal amount;
     private Integer term;
     private String email;
-    private Long statusId;
+    private String clientName;
     private Long typeLoanId;
+    private Double interestRate;
+    private BigDecimal baseSalary;
+    private Long statusId;
+    private BigDecimal monthlyDebt;
 }
