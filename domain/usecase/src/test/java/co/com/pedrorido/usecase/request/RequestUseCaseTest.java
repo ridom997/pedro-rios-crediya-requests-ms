@@ -75,7 +75,7 @@ class RequestUseCaseTest {
         // Configuramos el repositorio para retornar "false"
         when(loanTypeRepository.loanTypeExistsById(1L))
                 .thenReturn(Mono.just(true));
-        when(userRepository.userExistsByDocumentNumber("456789")).thenReturn(Mono.just(false));
+        when(userRepository.userExistsByDocumentNumber("456789", "email")).thenReturn(Mono.just(false));
         // Creamos un DTO de ejemplo
         CreateRequestDomainDTO requestDTO = CreateRequestDomainDTO.builder()
                 .typeLoanId(1L)
@@ -102,7 +102,7 @@ class RequestUseCaseTest {
         // Configuramos el repositorio para retornar "true"
         when(loanTypeRepository.loanTypeExistsById(1L))
                 .thenReturn(Mono.just(true));
-        when(userRepository.userExistsByDocumentNumber("456789")).thenReturn(Mono.just(true));
+        when(userRepository.userExistsByDocumentNumber("456789","email")).thenReturn(Mono.just(true));
 
         // Configuramos el repositorio para simular el guardado
         when(requestDomainRepository.saveRequestDomain(any(RequestDomain.class)))

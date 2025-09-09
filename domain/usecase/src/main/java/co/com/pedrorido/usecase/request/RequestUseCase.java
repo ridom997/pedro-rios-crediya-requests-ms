@@ -30,7 +30,7 @@ public class RequestUseCase implements IRequestApi {
         return loanTypeRepository.loanTypeExistsById(createRequest.getTypeLoanId())
                 .flatMap(loanTypeExists -> {
                     if (!loanTypeExists) return Mono.error(new IllegalStateException("loan type not found"));
-                    return userRepository.userExistsByDocumentNumber(createRequest.getDocumentNumber());
+                    return userRepository.userExistsByDocumentNumber(createRequest.getDocumentNumber(), createRequest.getEmail());
                 }).flatMap(userExists -> {
                     if (!userExists) return Mono.error(new IllegalStateException("user not found"));
                     return requestDomainRepository.saveRequestDomain(RequestDomain.builder()

@@ -22,7 +22,7 @@ public class RestConsumer implements UserRepository {
     private final WebClient client;
 
     @Override
-    public Mono<Boolean> userExistsByDocumentNumber(String documentNumber) {
+    public Mono<Boolean> userExistsByDocumentNumber(String documentNumber, String email) {
         log.info("WebClient - userExistsByDocumentNumber: {}", documentNumber);
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication())
@@ -32,11 +32,12 @@ public class RestConsumer implements UserRepository {
                 .flatMap(jwtAuth -> {
                     Jwt jwt = jwtAuth.getToken();
                     String claimDoc = firstNonBlankClaim(jwt, "id");
+                    String claimEmail = firstNonBlankClaim(jwt,  "sub");
 
                     if (claimDoc == null) {
                         return Mono.error(new IllegalStateException("missing_document_claim_in_jwt"));
                     }
-                    if (!normalize(documentNumber).equals(normalize(claimDoc))) {
+                    if (!normalize(documentNumber).equals(normalize(claimDoc)) || !normalize(email).equals(normalize(claimEmail))) {
                         return Mono.error(new AccessDeniedException("Only can create requests for the user that issued the token"));
                     }
 
