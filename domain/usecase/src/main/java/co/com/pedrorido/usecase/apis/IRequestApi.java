@@ -10,5 +10,6 @@ import java.util.Set;
 
 public interface IRequestApi {
     Mono<RequestDomain> createRequest(CreateRequestDomainDTO createRequest);
+    Mono<RequestDomain> updateStatusRequest(String requestId, Long statusId);
     Mono<PageResult<RequestBasicAdminInfo>> getListByStatus(Set<Long> statusEnumSet, int page, int size);
 }

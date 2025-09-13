@@ -10,5 +10,6 @@ import java.util.Set;
 
 public interface RequestDomainRepository {
     Mono<RequestDomain> saveRequestDomain(RequestDomain request);
+    Mono<RequestDomain> findById(String requestId);
     Mono<PageResult<RequestBasicAdminInfo>> findPage(Set<Long> statusEnumSet, int page, int size);
 }

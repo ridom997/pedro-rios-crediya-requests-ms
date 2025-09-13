@@ -21,7 +21,7 @@ public enum StatusEnum {
         return description;
     }
 
-    public static StatusEnum fromId(String id) {
+    public static StatusEnum fromId(Long id) {
         for (StatusEnum status : StatusEnum.values()) {
             if (status.getId().equals(id)) {
                 return status;

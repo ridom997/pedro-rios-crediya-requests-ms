@@ -1,6 +1,7 @@
 package co.com.pedrorido.usecase.request;
 
 import co.com.pedrorido.model.external.User;
+import co.com.pedrorido.model.external.gateways.MessagePublisherRepository;
 import co.com.pedrorido.model.external.gateways.UserRepository;
 import co.com.pedrorido.model.loantype.gateways.LoanTypeRepository;
 import co.com.pedrorido.model.requestdomain.RequestBasicAdminInfo;
@@ -32,6 +33,7 @@ class RequestUseCaseTest {
     private RequestUseCase requestUseCase;
     private UserRepository userRepository;
     private static final Long APPROVED_ID = StatusEnum.APPROVED.getId();
+    private MessagePublisherRepository publisherRepository;
 
     @BeforeEach
     void setUp() {
@@ -40,7 +42,7 @@ class RequestUseCaseTest {
         requestDomainRepository = mock(RequestDomainRepository.class);
         userRepository = mock(UserRepository.class);
         // Creamos instancia de la clase que probaremos
-        requestUseCase = new RequestUseCase(loanTypeRepository, requestDomainRepository, userRepository);
+        requestUseCase = new RequestUseCase(loanTypeRepository, requestDomainRepository, userRepository, publisherRepository);
     }
 
     @Test

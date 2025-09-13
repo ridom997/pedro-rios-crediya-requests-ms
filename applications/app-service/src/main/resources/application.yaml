@@ -27,16 +27,20 @@ cors:
   allowed-origins: "http://localhost:4200,http://localhost:8080"
 adapters:
   r2dbc:
-    host: ${DB_HOST}
-    port: ${DB_PORT}
-    database: ${DB_NAME_LOAN}
-    schema: ${DB_SCHEMA:public}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    host: "${DB_HOST}"
+    port: "${DB_PORT}"
+    database: "${DB_NAME_LOAN}"
+    schema: "${DB_SCHEMA:public}"
+    username: "${DB_USERNAME}"
+    password: "${DB_PASSWORD}"
 adapter:
   restconsumer:
     timeout: 5000
-    url: ${ADAPTER_RESTCONSUMER_URL}
+    url: "${ADAPTER_RESTCONSUMER_URL}"
+  sqs:
+    region: "us-east-1"
+    queueUrl: "http://localhost:4566/000000000000/sample"
+    endpoint: "http://localhost:4566 # For localstack only"
 resilience4j:
   circuitbreaker:
     instances:
@@ -58,7 +62,6 @@ resilience4j:
         slidingWindowSize: 10
         minimumNumberOfCalls: 10
         waitDurationInOpenState: "10s"
-
 security:
   jwt:
-    secret: ${SECURITY_JWT_SECRET}
+    secret: "${SECURITY_JWT_SECRET}"
