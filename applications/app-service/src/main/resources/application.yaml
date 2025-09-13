@@ -27,16 +27,16 @@ cors:
   allowed-origins: "http://localhost:4200,http://localhost:8080"
 adapters:
   r2dbc:
-    host: "localhost"
-    port: 5432
-    database: "crediya"
-    schema: "public"
-    username: "admin"
-    password: "admin123"
+    host: ${DB_HOST}
+    port: ${DB_PORT}
+    database: ${DB_NAME_LOAN}
+    schema: ${DB_SCHEMA:public}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 adapter:
   restconsumer:
     timeout: 5000
-    url: "http://localhost:8080"
+    url: ${ADAPTER_RESTCONSUMER_URL}
 resilience4j:
   circuitbreaker:
     instances:
@@ -61,4 +61,4 @@ resilience4j:
 
 security:
   jwt:
-    secret: "dev-very-long-secret-change-me-please-0123456789"
+    secret: ${SECURITY_JWT_SECRET}
