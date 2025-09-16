@@ -3,6 +3,7 @@ package co.com.pedrorido.api.dto;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Data
 @AllArgsConstructor
@@ -11,7 +12,7 @@ import java.math.BigDecimal;
 @Setter
 @Builder
 public class RequestResponseDTO {
-    private String id;
+    private UUID id;
     private BigDecimal amount;
     private Integer term;
     private String email;

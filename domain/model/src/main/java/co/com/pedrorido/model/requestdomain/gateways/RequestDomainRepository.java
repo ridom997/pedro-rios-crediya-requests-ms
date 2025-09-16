@@ -7,9 +7,10 @@ import co.com.pedrorido.model.utils.StatusEnum;
 import reactor.core.publisher.Mono;
 
 import java.util.Set;
+import java.util.UUID;
 
 public interface RequestDomainRepository {
     Mono<RequestDomain> saveRequestDomain(RequestDomain request);
-    Mono<RequestDomain> findById(String requestId);
+    Mono<RequestDomain> findById(UUID requestId);
     Mono<PageResult<RequestBasicAdminInfo>> findPage(Set<Long> statusEnumSet, int page, int size);
 }

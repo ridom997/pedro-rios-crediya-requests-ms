@@ -1,7 +1,8 @@
 package co.com.pedrorido.model.external;
 
-import java.time.Instant;
+import java.util.Date;
+import java.util.UUID;
 
 public record RequestStatusChangeMessage(
-        String solicitudId, String estadoAnterior, String estadoNuevo,
-        String usuarioId, Instant when) {}
+        UUID solicitudId, String estadoAnterior, String estadoNuevo,
+        String usuarioId, Date when) {}

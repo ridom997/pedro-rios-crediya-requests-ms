@@ -4,6 +4,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -12,7 +13,7 @@ import java.time.LocalDate;
 @Builder(toBuilder = true)
 @ToString
 public class RequestDomain {
-    private String id;
+    private UUID id;
     private BigDecimal amount;
     private Integer term;
     private String email;

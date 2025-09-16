@@ -2,6 +2,8 @@ package co.com.pedrorido.api.dto;
 
 import lombok.*;
 
+import java.util.UUID;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -9,6 +11,6 @@ import lombok.*;
 @Setter
 @Builder
 public class UpdateRequestDTO {
-    private String id;
+    private UUID id;
     private Long statusId;
 }

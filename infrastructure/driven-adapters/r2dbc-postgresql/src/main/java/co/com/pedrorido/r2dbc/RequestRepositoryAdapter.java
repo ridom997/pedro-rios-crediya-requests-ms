@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
         RequestDomain,
         RequestEntity,
-        String,
+        UUID,
         RequestReactiveRepository
         > implements RequestDomainRepository {
     public RequestRepositoryAdapter(RequestReactiveRepository repository, ObjectMapper mapper, R2dbcEntityTemplate template) {
@@ -93,7 +93,7 @@ public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
                                 .map(r -> {
                                     LoanTypeEntity lt = loanTypes.get(r.getTypeLoanId());
                                     return RequestBasicAdminInfo.builder()
-                                            .id(r.getId() != null ? r.getId().toString() : null)
+                                            .id(r.getId() != null ? r.getId() : null)
                                             .amount(r.getAmount())
                                             .term(r.getTerm())
                                             .email(r.getEmail())

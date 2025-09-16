@@ -48,20 +48,33 @@ public class RequestUseCase implements IRequestApi {
     }
 
     @Override
-    public Mono<RequestDomain> updateStatusRequest(String requestId, Long statusId) {
-        if (statusId.equals(StatusEnum.APPROVED.getId()) && (statusId.equals(StatusEnum.APPROVED.getId()) || statusId.equals(StatusEnum.REJECTED.getId()))) {
+    public Mono<RequestDomain> updateStatusRequest(UUID requestId, Long statusId) {
+        if (statusId.equals(StatusEnum.APPROVED.getId()) || statusId.equals(StatusEnum.REJECTED.getId())) {
             return requestDomainRepository.findById(requestId)
                     .switchIfEmpty(Mono.error(new IllegalStateException("request not found")))
-                    .flatMap(requestDomain -> {
-                        if (!requestDomain.getStatusId().equals(StatusEnum.PENDING.getId())) {
+                    .flatMap(current -> {
+                        // 2) Solo se permite PENDING -> (APPROVED | REJECTED)
+                        if (!Objects.equals(current.getStatusId(), StatusEnum.PENDING.getId())) {
+                            System.out.println(current.getStatusId());
                             return Mono.error(new IllegalStateException("invalid status change"));
                         }
-                        requestDomain.setStatusId(statusId);
-                        return requestDomainRepository.saveRequestDomain(requestDomain);
-                    }).doOnSuccess(requestDomain -> {
-                        var evt = new RequestStatusChangeMessage(
-                                requestDomain.getId(), StatusEnum.PENDING.getDescription(), StatusEnum.fromId(statusId).getDescription(), requestDomain.getEmail(), Instant.now());
-                        publisherRepository.publishRequestStatusChange(evt);
+
+                        Long previousStatusId = current.getStatusId();
+                        current.setStatusId(statusId);
+
+                        return requestDomainRepository.saveRequestDomain(current)
+                                .flatMap(saved -> {
+                                    var evt = new RequestStatusChangeMessage(
+                                            saved.getId(),
+                                            StatusEnum.fromId(previousStatusId).getDescription(),
+                                            StatusEnum.fromId(statusId).getDescription(),
+                                            saved.getEmail(),
+                                            new Date()
+                                    );
+                                    // 3) IMPORTANTE: encadenar la publicación (suscripción garantizada)
+                                    return publisherRepository.publishRequestStatusChange(evt)
+                                            .thenReturn(saved);
+                                });
                     });
         }
         return Mono.error(new IllegalStateException("invalid status"));
