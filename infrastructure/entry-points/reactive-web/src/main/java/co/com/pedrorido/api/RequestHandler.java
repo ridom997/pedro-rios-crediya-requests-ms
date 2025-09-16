@@ -3,6 +3,7 @@ package co.com.pedrorido.api;
 import co.com.pedrorido.api.dto.CreateRequestDTO;
 import co.com.pedrorido.api.dto.GeneralResponseDTO;
 import co.com.pedrorido.api.dto.RequestResponseDTO;
+import co.com.pedrorido.api.dto.UpdateRequestDTO;
 import co.com.pedrorido.api.mapper.CreateRequestDTOMapper;
 import co.com.pedrorido.api.mapper.RequestDTOMapper;
 import co.com.pedrorido.model.status.Status;
@@ -79,7 +80,7 @@ public class RequestHandler {
                 .map(requestDTOMapper::toDto)
                 .map(savedRequestDto -> {
                     HashMap<String, RequestResponseDTO> data = new HashMap<>();
-                    data.put("user", savedRequestDto);
+                    data.put("request", savedRequestDto);
                     return new ResponseEntity<>(
                             GeneralResponseDTO.<RequestResponseDTO>builder()
                                     .success(true)
@@ -153,4 +154,24 @@ public class RequestHandler {
         try { return Integer.parseInt(s); } catch (Exception e) { return def; }
     }
 
+    public Mono<ResponseEntity<GeneralResponseDTO<RequestResponseDTO>>> listenUpdateRequestStatus(ServerRequest serverRequest) {
+        return serverRequest.bodyToMono(UpdateRequestDTO.class)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Request body is required")))
+                .doOnNext(log::info)
+                .flatMap(updateRequest -> requestUseCase.updateStatusRequest(updateRequest.getId(), updateRequest.getStatusId()).as(tx::transactional))
+                .map(requestDTOMapper::toDto)
+                .map(updatedRequestDto -> {
+                    HashMap<String, RequestResponseDTO> data = new HashMap<>();
+                    data.put("request", updatedRequestDto);
+                    return new ResponseEntity<>(
+                            GeneralResponseDTO.<RequestResponseDTO>builder()
+                                    .success(true)
+                                    .message("Request updated successfully")
+                                    .data(data)
+                                    .build(),
+                            HttpStatus.ACCEPTED);
+                })
+                .doOnSuccess(log::info)
+                .doOnError(log::error);
+    }
 }

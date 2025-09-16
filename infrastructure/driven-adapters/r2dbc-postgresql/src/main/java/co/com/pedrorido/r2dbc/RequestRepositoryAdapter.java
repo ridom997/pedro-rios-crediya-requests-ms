@@ -4,25 +4,17 @@ import co.com.pedrorido.model.requestdomain.RequestBasicAdminInfo;
 import co.com.pedrorido.model.requestdomain.RequestDomain;
 import co.com.pedrorido.model.requestdomain.gateways.RequestDomainRepository;
 import co.com.pedrorido.model.utils.PageResult;
-import co.com.pedrorido.model.utils.StatusEnum;
 import co.com.pedrorido.r2dbc.entity.LoanTypeEntity;
-import co.com.pedrorido.r2dbc.entity.RequestAndLoanTypeEntity;
 import co.com.pedrorido.r2dbc.entity.RequestEntity;
 import co.com.pedrorido.r2dbc.helper.ReactiveAdapterOperations;
-import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.reactivecommons.utils.ObjectMapper;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
-import org.springframework.stereotype.Repository;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import org.springframework.data.relational.core.query.Criteria;   // OJO: relacional, no Mongo
+import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.Query;
-import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Set;
-import org.springframework.r2dbc.core.DatabaseClient;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -32,7 +24,7 @@ import java.util.stream.Collectors;
 public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
         RequestDomain,
         RequestEntity,
-        String,
+        UUID,
         RequestReactiveRepository
         > implements RequestDomainRepository {
     public RequestRepositoryAdapter(RequestReactiveRepository repository, ObjectMapper mapper, R2dbcEntityTemplate template) {
@@ -101,7 +93,7 @@ public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
                                 .map(r -> {
                                     LoanTypeEntity lt = loanTypes.get(r.getTypeLoanId());
                                     return RequestBasicAdminInfo.builder()
-                                            .id(r.getId() != null ? r.getId().toString() : null)
+                                            .id(r.getId() != null ? r.getId() : null)
                                             .amount(r.getAmount())
                                             .term(r.getTerm())
                                             .email(r.getEmail())

@@ -1,6 +1,7 @@
 package co.com.pedrorido.usecase.request;
 
 import co.com.pedrorido.model.external.User;
+import co.com.pedrorido.model.external.gateways.MessagePublisherRepository;
 import co.com.pedrorido.model.external.gateways.UserRepository;
 import co.com.pedrorido.model.loantype.gateways.LoanTypeRepository;
 import co.com.pedrorido.model.requestdomain.RequestBasicAdminInfo;
@@ -21,6 +22,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,6 +34,7 @@ class RequestUseCaseTest {
     private RequestUseCase requestUseCase;
     private UserRepository userRepository;
     private static final Long APPROVED_ID = StatusEnum.APPROVED.getId();
+    private MessagePublisherRepository publisherRepository;
 
     @BeforeEach
     void setUp() {
@@ -40,7 +43,7 @@ class RequestUseCaseTest {
         requestDomainRepository = mock(RequestDomainRepository.class);
         userRepository = mock(UserRepository.class);
         // Creamos instancia de la clase que probaremos
-        requestUseCase = new RequestUseCase(loanTypeRepository, requestDomainRepository, userRepository);
+        requestUseCase = new RequestUseCase(loanTypeRepository, requestDomainRepository, userRepository, publisherRepository);
     }
 
     @Test
@@ -143,8 +146,8 @@ class RequestUseCaseTest {
     @DisplayName("Enriquece: clientName, baseSalary y monthlyDebt cuando el usuario existe y status es APPROVED. Dedup de emails.")
     void enriches_and_setsMonthlyDebt_whenApproved_andUserFound_dedupEmails() {
         // Datos
-        RequestBasicAdminInfo a1 = req("1", "a@x.com", APPROVED_ID, new BigDecimal("10000"), 2.0, 12);
-        RequestBasicAdminInfo a2 = req("2", "a@x.com", APPROVED_ID, new BigDecimal("20000"), 2.5, 24); // email duplicado
+        RequestBasicAdminInfo a1 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "a@x.com", APPROVED_ID, new BigDecimal("10000"), 2.0, 12);
+        RequestBasicAdminInfo a2 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "a@x.com", APPROVED_ID, new BigDecimal("20000"), 2.5, 24); // email duplicado
 
         PageResult<RequestBasicAdminInfo> page = new PageResult<>(
                 List.of(a1, a2), 0, 2, 2L, 1
@@ -195,7 +198,7 @@ class RequestUseCaseTest {
         // status distinto a APPROVED
         long NOT_APPROVED = APPROVED_ID + 9999L;
 
-        RequestBasicAdminInfo b1 = req("3", "b@x.com", NOT_APPROVED, new BigDecimal("15000"), 3.1, 18);
+        RequestBasicAdminInfo b1 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "b@x.com", NOT_APPROVED, new BigDecimal("15000"), 3.1, 18);
         PageResult<RequestBasicAdminInfo> page = new PageResult<>(List.of(b1), 1, 1, 1L, 1);
 
         User ub = user("Bob", "Smith", new BigDecimal("1800000"), "b@x.com");
@@ -225,9 +228,9 @@ class RequestUseCaseTest {
     @Test
     @DisplayName("Ignora emails null; ignora errores por-email y usuarios no encontrados (Mono.empty()).")
     void ignoresNullEmails_andErrorPerEmail_andEmptyUser() {
-        RequestBasicAdminInfo n1 = req("4", null, APPROVED_ID, new BigDecimal("12000"), 2.8, 10);        // null email
-        RequestBasicAdminInfo n2 = req("5", "err@x.com", APPROVED_ID, new BigDecimal("9000"), 2.2, 8);   // error
-        RequestBasicAdminInfo n3 = req("6", "empty@x.com", APPROVED_ID, new BigDecimal("5000"), 1.5, 6); // empty user
+        RequestBasicAdminInfo n1 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", null, APPROVED_ID, new BigDecimal("12000"), 2.8, 10);        // null email
+        RequestBasicAdminInfo n2 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "err@x.com", APPROVED_ID, new BigDecimal("9000"), 2.2, 8);   // error
+        RequestBasicAdminInfo n3 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "empty@x.com", APPROVED_ID, new BigDecimal("5000"), 1.5, 6); // empty user
 
         PageResult<RequestBasicAdminInfo> page = new PageResult<>(List.of(n1, n2, n3), 0, 3, 3L, 1);
 
@@ -267,9 +270,9 @@ class RequestUseCaseTest {
     @Test
     @DisplayName("Construye clientName correctamente: solo nombre, solo apellido, y ambos.")
     void buildsClientName_skippingNulls() {
-        RequestBasicAdminInfo c1 = req("7", "onlyname@x.com", APPROVED_ID, new BigDecimal("8000"), 2.0, 8);
-        RequestBasicAdminInfo c2 = req("8", "onlysurname@x.com", APPROVED_ID, new BigDecimal("7000"), 1.8, 7);
-        RequestBasicAdminInfo c3 = req("9", "both@x.com", APPROVED_ID, new BigDecimal("6000"), 1.7, 6);
+        RequestBasicAdminInfo c1 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "onlyname@x.com", APPROVED_ID, new BigDecimal("8000"), 2.0, 8);
+        RequestBasicAdminInfo c2 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "onlysurname@x.com", APPROVED_ID, new BigDecimal("7000"), 1.8, 7);
+        RequestBasicAdminInfo c3 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "both@x.com", APPROVED_ID, new BigDecimal("6000"), 1.7, 6);
 
         PageResult<RequestBasicAdminInfo> page = new PageResult<>(List.of(c1, c2, c3), 2, 3, 3L, 1);
 
@@ -313,7 +316,7 @@ class RequestUseCaseTest {
 
     private static RequestBasicAdminInfo req(String id, String email, Long statusId, BigDecimal amount, Double interestRate, Integer term) {
         RequestBasicAdminInfo r = new RequestBasicAdminInfo();
-        r.setId(id);
+        r.setId(UUID.fromString(id));
         r.setEmail(email);
         r.setStatusId(statusId);
         r.setAmount(amount);

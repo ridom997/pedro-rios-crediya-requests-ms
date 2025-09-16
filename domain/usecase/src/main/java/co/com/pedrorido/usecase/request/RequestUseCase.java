@@ -1,6 +1,8 @@
 package co.com.pedrorido.usecase.request;
 
+import co.com.pedrorido.model.external.RequestStatusChangeMessage;
 import co.com.pedrorido.model.external.User;
+import co.com.pedrorido.model.external.gateways.MessagePublisherRepository;
 import co.com.pedrorido.model.external.gateways.UserRepository;
 import co.com.pedrorido.model.loantype.gateways.LoanTypeRepository;
 import co.com.pedrorido.model.requestdomain.RequestBasicAdminInfo;
@@ -15,6 +17,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -24,6 +27,7 @@ public class RequestUseCase implements IRequestApi {
     private final LoanTypeRepository loanTypeRepository;
     private final RequestDomainRepository requestDomainRepository;
     private final UserRepository userRepository;
+    private final MessagePublisherRepository publisherRepository;
 
     @Override
     public Mono<RequestDomain> createRequest(CreateRequestDomainDTO createRequest) {
@@ -41,6 +45,39 @@ public class RequestUseCase implements IRequestApi {
                             .statusId(StatusEnum.PENDING.getId())
                             .build());
                 });
+    }
+
+    @Override
+    public Mono<RequestDomain> updateStatusRequest(UUID requestId, Long statusId) {
+        if (statusId.equals(StatusEnum.APPROVED.getId()) || statusId.equals(StatusEnum.REJECTED.getId())) {
+            return requestDomainRepository.findById(requestId)
+                    .switchIfEmpty(Mono.error(new IllegalStateException("request not found")))
+                    .flatMap(current -> {
+                        // 2) Solo se permite PENDING -> (APPROVED | REJECTED)
+                        if (!Objects.equals(current.getStatusId(), StatusEnum.PENDING.getId())) {
+                            System.out.println(current.getStatusId());
+                            return Mono.error(new IllegalStateException("invalid status change"));
+                        }
+
+                        Long previousStatusId = current.getStatusId();
+                        current.setStatusId(statusId);
+
+                        return requestDomainRepository.saveRequestDomain(current)
+                                .flatMap(saved -> {
+                                    var evt = new RequestStatusChangeMessage(
+                                            saved.getId(),
+                                            StatusEnum.fromId(previousStatusId).getDescription(),
+                                            StatusEnum.fromId(statusId).getDescription(),
+                                            saved.getEmail(),
+                                            new Date()
+                                    );
+                                    // 3) IMPORTANTE: encadenar la publicación (suscripción garantizada)
+                                    return publisherRepository.publishRequestStatusChange(evt)
+                                            .thenReturn(saved);
+                                });
+                    });
+        }
+        return Mono.error(new IllegalStateException("invalid status"));
     }
 
     @Override

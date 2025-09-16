@@ -3,6 +3,7 @@ package co.com.pedrorido.model.requestdomain;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -11,7 +12,7 @@ import java.math.BigDecimal;
 @Builder(toBuilder = true)
 @ToString
 public class RequestBasicAdminInfo {
-    private String id;
+    private UUID id;
     private BigDecimal amount;
     private Integer term;
     private String email;

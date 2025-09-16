@@ -10,9 +10,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.UUID;
 
 // TODO: This file is just an example, you should delete or modify it
-public interface RequestReactiveRepository extends ReactiveCrudRepository<RequestEntity, String>, ReactiveQueryByExampleExecutor<RequestEntity> {
+public interface RequestReactiveRepository extends ReactiveCrudRepository<RequestEntity, UUID>, ReactiveQueryByExampleExecutor<RequestEntity> {
     @Query("select * from solicitud s where s.id_estado in (:statusNames)")
     Flux<RequestEntity> findByStatusName(List<String> statusNames);
 }

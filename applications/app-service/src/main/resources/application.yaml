@@ -27,16 +27,19 @@ cors:
   allowed-origins: "http://localhost:4200,http://localhost:8080"
 adapters:
   r2dbc:
-    host: ${DB_HOST}
-    port: ${DB_PORT}
-    database: ${DB_NAME_LOAN}
-    schema: ${DB_SCHEMA:public}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    host: "${DB_HOST:localhost}"
+    port: "${DB_PORT:5432}"
+    database: "${DB_NAME_LOAN:crediya}"
+    schema: "${DB_SCHEMA:public}"
+    username: "${DB_USERNAME:admin}"
+    password: "${DB_PASSWORD:admin123}"
 adapter:
   restconsumer:
     timeout: 5000
-    url: ${ADAPTER_RESTCONSUMER_URL}
+    url: "${ADAPTER_RESTCONSUMER_URL:http://localhost:8080}"
+  sqs:
+    region: "${AWS_REGION:us-east-1}"
+    queueUrl: "https://sqs.us-east-1.amazonaws.com/339340413586/statusChangeCrediYa"
 resilience4j:
   circuitbreaker:
     instances:
@@ -58,7 +61,6 @@ resilience4j:
         slidingWindowSize: 10
         minimumNumberOfCalls: 10
         waitDurationInOpenState: "10s"
-
 security:
   jwt:
-    secret: ${SECURITY_JWT_SECRET}
+    secret: "${SECURITY_JWT_SECRET:dev-very-long-secret-change-me-please-0123456789}"
