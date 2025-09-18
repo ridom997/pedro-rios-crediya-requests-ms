@@ -33,4 +33,7 @@ public class RequestEntity {
 
     @Column("id_tipo_prestamo")
     private Long typeLoanId;
+
+    @Column("deuda_mensual")
+    private BigDecimal monthlyDebt;
 }

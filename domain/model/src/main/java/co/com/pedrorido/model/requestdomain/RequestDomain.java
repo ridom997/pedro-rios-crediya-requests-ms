@@ -19,4 +19,5 @@ public class RequestDomain {
     private String email;
     private Long statusId;
     private Long typeLoanId;
+    private BigDecimal monthlyDebt;
 }

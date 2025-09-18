@@ -158,7 +158,7 @@ public class RequestHandler {
         return serverRequest.bodyToMono(UpdateRequestDTO.class)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Request body is required")))
                 .doOnNext(log::info)
-                .flatMap(updateRequest -> requestUseCase.updateStatusRequest(updateRequest.getId(), updateRequest.getStatusId()).as(tx::transactional))
+                .flatMap(updateRequest -> requestUseCase.updateStatusRequest(updateRequest.getId(), updateRequest.getStatusId(), true).as(tx::transactional))
                 .map(requestDTOMapper::toDto)
                 .map(updatedRequestDto -> {
                     HashMap<String, RequestResponseDTO> data = new HashMap<>();

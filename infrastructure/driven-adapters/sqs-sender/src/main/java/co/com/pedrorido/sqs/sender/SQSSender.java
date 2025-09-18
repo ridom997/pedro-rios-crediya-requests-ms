@@ -1,5 +1,6 @@
 package co.com.pedrorido.sqs.sender;
 
+import co.com.pedrorido.model.external.RequestCalculateDebtMessage;
 import co.com.pedrorido.model.external.RequestStatusChangeMessage;
 import co.com.pedrorido.model.external.gateways.MessagePublisherRepository;
 import co.com.pedrorido.sqs.sender.config.SQSSenderProperties;
@@ -10,7 +11,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-import software.amazon.awssdk.services.sqs.model.SendMessageResponse;
 
 @Service
 @Log4j2
@@ -20,28 +20,37 @@ public class SQSSender implements MessagePublisherRepository {
     private final SqsAsyncClient client;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public Mono<String> send(String message) {
-        return Mono.fromCallable(() -> buildRequest(message))
-                .flatMap(request -> Mono.fromFuture(client.sendMessage(request)))
-                .doOnNext(response -> log.debug("Message sent {}", response.messageId()))
-                .map(SendMessageResponse::messageId);
-    }
-
-    private SendMessageRequest buildRequest(String message) {
-        return SendMessageRequest.builder()
-                .queueUrl(properties.queueUrl())
-                .messageBody(message)
-                .build();
-    }
 
     @Override
     public Mono<Void> publishRequestStatusChange(RequestStatusChangeMessage evt) {
-        log.debug("Sending request status change message {}", evt);
-        return Mono.fromCallable(() -> mapper.writeValueAsString(evt))
-                .flatMap(json -> Mono.fromFuture(client.sendMessage(buildRequest(json)))
-                )
-                .doOnNext(response -> log.debug("Message sent {}", response.messageId()))
-                .doOnError(e -> log.error("SQS publish error", e))
+        log.info("Sending StatusChange message to SQS {}", evt);
+        return serialize(evt)
+                .flatMap(json -> Mono.fromFuture(client.sendMessage(
+                        buildRequest(properties.requestStatusChangeQueueUrl(), json))))
+                .doOnNext(resp -> log.debug("StatusChange sent {}", resp.messageId()))
+                .doOnError(e -> log.error("SQS publish error (status change)", e))
                 .then();
+    }
+
+    @Override
+    public Mono<Void> publishCalculateDebtCapacitySqs(RequestCalculateDebtMessage evt) {
+        log.info("Sending CalculateDebtCapacity message to SQS {}" , evt);
+        return serialize(evt)
+                .flatMap(json -> Mono.fromFuture(client.sendMessage(
+                        buildRequest(properties.calculateDebtCapacityQueueUrl(), json))))
+                .doOnNext(resp -> log.debug("DebtCapacity sent {}", resp.messageId()))
+                .doOnError(e -> log.error("SQS publish error (debt capacity)", e))
+                .then();
+    }
+
+    private Mono<String> serialize(Object evt) {
+        return Mono.fromCallable(() -> mapper.writeValueAsString(evt));
+    }
+
+    private SendMessageRequest buildRequest(String queueUrl, String body) {
+        SendMessageRequest.Builder b = SendMessageRequest.builder()
+                .queueUrl(queueUrl)
+                .messageBody(body);
+        return b.build();
     }
 }

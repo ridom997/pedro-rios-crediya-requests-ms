@@ -15,6 +15,7 @@ import org.springframework.data.relational.core.query.Query;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -39,6 +40,21 @@ public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
         log.info("POSTGRES - saveRequestDomain: {}", request);
         return super.save(request);
     }
+
+    @Override
+    public Mono<BigDecimal> findSumMonthlyDebtByEmail(String email) {
+        log.info("REQUEST-ADAPTER: Starting findSumMonthlyDebtByEmail for email={}", email);
+
+        return repository.sumMonthlyDebtByEmail(email)
+                .doOnNext(result -> log.info("REQUEST-ADAPTER: Query result for email={} is {}", email, result))
+                .doOnError(error -> log.error("REQUEST-ADAPTER: Error executing query for email={}: {}", email, error.getMessage(), error))
+                .onErrorResume(error -> {
+                    log.error("REQUEST-ADAPTER: Handling error for email={}: {}", email, error.getMessage());
+                    return Mono.just(BigDecimal.ZERO); // Devuelve un valor por defecto en caso de error
+                });
+    }
+
+
 
     @Override
     public Mono<PageResult<RequestBasicAdminInfo>> findPage(Set<Long> statusEnumSet, int page, int size) {
@@ -100,6 +116,7 @@ public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
                                             .statusId(r.getStatusId())
                                             .typeLoanId(r.getTypeLoanId())
                                             .interestRate(lt != null ? lt.getInterestRate() : null)
+                                            .monthlyDebt(r.getMonthlyDebt())
                                             // clientName, baseSalary, calculated se completan en otra capa si aplica
                                             .build();
                                 })
@@ -109,5 +126,14 @@ public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
                         return new PageResult<>(content, p, s, totalElements, totalPages);
                     });
                 });
+    }
+
+    @Override
+    public Mono<List<RequestDomain>> getRequestFromUserByStatusId(String email, Long statusId) {
+        return repository.findAllByEmailAndStatusId(email, statusId)   // Flux<RequestEntity>
+                .map(this::toEntity)                                       // o super.toEntity(...)
+                .collectList()                                             // <-- SIEMPRE emite (lista vacía si no hay filas)
+                .doOnNext(list -> log.info("getRequestFromUserByStatusId(email={}, statusId={}) -> {} filas",
+                        email, statusId, list.size()));
     }
 }
