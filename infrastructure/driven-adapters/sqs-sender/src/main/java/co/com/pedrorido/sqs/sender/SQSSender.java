@@ -12,6 +12,8 @@ import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
+import java.util.Map;
+
 @Service
 @Log4j2
 @RequiredArgsConstructor
@@ -40,6 +42,17 @@ public class SQSSender implements MessagePublisherRepository {
                         buildRequest(properties.calculateDebtCapacityQueueUrl(), json))))
                 .doOnNext(resp -> log.debug("DebtCapacity sent {}", resp.messageId()))
                 .doOnError(e -> log.error("SQS publish error (debt capacity)", e))
+                .then();
+    }
+
+    @Override
+    public Mono<Void> publishUpdateCounterQueue(Map<String, String> evt) {
+        log.info("Sending UpdateCounter message to SQS {}", evt);
+        return serialize(evt)
+                .flatMap(json -> Mono.fromFuture(client.sendMessage(
+                        buildRequest(properties.updateCounterQueueUrl(), json))))
+                .doOnNext(resp -> log.debug("UpdateCounter sent {}", resp.messageId()))
+                .doOnError(e -> log.error("SQS publish error (UpdateCounter)", e))
                 .then();
     }
 

@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -41,7 +42,21 @@ public class RequestEventsUseCase implements IRequestEventsApi {
                                     new Date(),
                                     debtByUser,
                                     incomingData.reason());
-                            return publisherRepository.publishRequestStatusChange(requestStatusChangeMessage);
+
+
+                            Mono<Void> mailPublish = publisherRepository.publishRequestStatusChange(requestStatusChangeMessage);
+
+                            Mono<Void> maybeCounter = Mono.defer(() -> {
+                                // null-safe equals
+                                if (Objects.equals(savedRequest.getStatusId(), StatusEnum.APPROVED.getId())) {
+                                    Map<String, String> counterQueue = Map.of("pk", "approvedLoans","totalAmountLoans", savedRequest.getAmount().toString());
+                                    return publisherRepository.publishUpdateCounterQueue(counterQueue);
+                                }
+                                return Mono.empty(); // no aprobado => no hay side-effect
+                            });
+
+                            // Ejecuta secuencialmente: primero publish, luego (si aplica) counter
+                            return mailPublish.then(maybeCounter);
                         }).then())
                 .then();
     }

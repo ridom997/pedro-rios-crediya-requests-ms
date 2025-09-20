@@ -138,12 +138,24 @@ public class RequestUseCase implements IRequestApi {
     private Mono<RequestDomain> persistWithSideEffects(RequestDomain toSave, boolean callEvent) {
         return requestDomainRepository.saveRequestDomain(toSave)
                 .flatMap(saved -> {
-                    if (!callEvent) {
-                        return Mono.just(saved);
-                    }
+                    if (!callEvent) return Mono.just(saved);
 
                     RequestStatusChangeMessage evt = buildStatusChangeEvent(saved);
-                    return publisherRepository.publishRequestStatusChange(evt)
+
+                    Mono<Void> mainPublish = publisherRepository.publishRequestStatusChange(evt);
+
+                    Mono<Void> maybeCounter = Mono.defer(() -> {
+                        // null-safe equals
+                        if (Objects.equals(saved.getStatusId(), StatusEnum.APPROVED.getId())) {
+                            Map<String, String> counterQueue = Map.of("pk", "approvedLoans", "totalAmountLoans", saved.getAmount().toString());
+                            return publisherRepository.publishUpdateCounterQueue(counterQueue);
+                        }
+                        return Mono.empty(); // no aprobado => no hay side-effect
+                    });
+
+                    // Ejecuta secuencialmente: primero publish, luego (si aplica) counter
+                    return mainPublish
+                            .then(maybeCounter)
                             .thenReturn(saved);
                 });
     }

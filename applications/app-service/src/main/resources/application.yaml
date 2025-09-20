@@ -41,6 +41,7 @@ adapter:
     region: "${AWS_REGION:us-east-1}"
     requestStatusChangeQueueUrl: "https://sqs.us-east-1.amazonaws.com/339340413586/statusChangeCrediYa"
     calculateDebtCapacityQueueUrl: "https://sqs.us-east-1.amazonaws.com/339340413586/debtCapacitySqs"
+    updateCounterQueueUrl: "https://sqs.us-east-1.amazonaws.com/339340413586/updateCounterQueue"
 resilience4j:
   circuitbreaker:
     instances:

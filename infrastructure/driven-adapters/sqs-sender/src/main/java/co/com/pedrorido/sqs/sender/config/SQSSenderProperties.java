@@ -7,5 +7,6 @@ public record SQSSenderProperties(
      String region,
      String requestStatusChangeQueueUrl,
      String calculateDebtCapacityQueueUrl,
+     String updateCounterQueueUrl,
      String endpoint){
 }
