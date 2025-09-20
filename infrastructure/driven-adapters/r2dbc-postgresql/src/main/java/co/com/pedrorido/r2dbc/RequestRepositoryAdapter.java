@@ -4,25 +4,18 @@ import co.com.pedrorido.model.requestdomain.RequestBasicAdminInfo;
 import co.com.pedrorido.model.requestdomain.RequestDomain;
 import co.com.pedrorido.model.requestdomain.gateways.RequestDomainRepository;
 import co.com.pedrorido.model.utils.PageResult;
-import co.com.pedrorido.model.utils.StatusEnum;
 import co.com.pedrorido.r2dbc.entity.LoanTypeEntity;
-import co.com.pedrorido.r2dbc.entity.RequestAndLoanTypeEntity;
 import co.com.pedrorido.r2dbc.entity.RequestEntity;
 import co.com.pedrorido.r2dbc.helper.ReactiveAdapterOperations;
-import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.reactivecommons.utils.ObjectMapper;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
-import org.springframework.stereotype.Repository;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import org.springframework.data.relational.core.query.Criteria;   // OJO: relacional, no Mongo
+import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.Query;
-import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Set;
-import org.springframework.r2dbc.core.DatabaseClient;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -32,7 +25,7 @@ import java.util.stream.Collectors;
 public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
         RequestDomain,
         RequestEntity,
-        String,
+        UUID,
         RequestReactiveRepository
         > implements RequestDomainRepository {
     public RequestRepositoryAdapter(RequestReactiveRepository repository, ObjectMapper mapper, R2dbcEntityTemplate template) {
@@ -47,6 +40,21 @@ public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
         log.info("POSTGRES - saveRequestDomain: {}", request);
         return super.save(request);
     }
+
+    @Override
+    public Mono<BigDecimal> findSumMonthlyDebtByEmail(String email) {
+        log.info("REQUEST-ADAPTER: Starting findSumMonthlyDebtByEmail for email={}", email);
+
+        return repository.sumMonthlyDebtByEmail(email)
+                .doOnNext(result -> log.info("REQUEST-ADAPTER: Query result for email={} is {}", email, result))
+                .doOnError(error -> log.error("REQUEST-ADAPTER: Error executing query for email={}: {}", email, error.getMessage(), error))
+                .onErrorResume(error -> {
+                    log.error("REQUEST-ADAPTER: Handling error for email={}: {}", email, error.getMessage());
+                    return Mono.just(BigDecimal.ZERO); // Devuelve un valor por defecto en caso de error
+                });
+    }
+
+
 
     @Override
     public Mono<PageResult<RequestBasicAdminInfo>> findPage(Set<Long> statusEnumSet, int page, int size) {
@@ -101,13 +109,14 @@ public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
                                 .map(r -> {
                                     LoanTypeEntity lt = loanTypes.get(r.getTypeLoanId());
                                     return RequestBasicAdminInfo.builder()
-                                            .id(r.getId() != null ? r.getId().toString() : null)
+                                            .id(r.getId() != null ? r.getId() : null)
                                             .amount(r.getAmount())
                                             .term(r.getTerm())
                                             .email(r.getEmail())
                                             .statusId(r.getStatusId())
                                             .typeLoanId(r.getTypeLoanId())
                                             .interestRate(lt != null ? lt.getInterestRate() : null)
+                                            .monthlyDebt(r.getMonthlyDebt())
                                             // clientName, baseSalary, calculated se completan en otra capa si aplica
                                             .build();
                                 })
@@ -117,5 +126,14 @@ public class RequestRepositoryAdapter extends ReactiveAdapterOperations<
                         return new PageResult<>(content, p, s, totalElements, totalPages);
                     });
                 });
+    }
+
+    @Override
+    public Mono<List<RequestDomain>> getRequestFromUserByStatusId(String email, Long statusId) {
+        return repository.findAllByEmailAndStatusId(email, statusId)   // Flux<RequestEntity>
+                .map(this::toEntity)                                       // o super.toEntity(...)
+                .collectList()                                             // <-- SIEMPRE emite (lista vacía si no hay filas)
+                .doOnNext(list -> log.info("getRequestFromUserByStatusId(email={}, statusId={}) -> {} filas",
+                        email, statusId, list.size()));
     }
 }

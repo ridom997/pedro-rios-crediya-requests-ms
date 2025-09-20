@@ -56,7 +56,15 @@ public class RouterRest {
                                 .status(re.getStatusCode())
                                 .headers(h -> h.addAll(re.getHeaders()))
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(re.getBody()))
-        ).andRoute(GET("/api/v1/solicitud"), res -> requestHandler.listRequests(res));
+                                .bodyValue(re.getBody())))
+                .andRoute(GET("/api/v1/solicitud"), res -> requestHandler.listRequests(res))
+                .andRoute(PUT("/api/v1/solicitud")
+                        .and(accept(MediaType.APPLICATION_JSON))
+                        .and(contentType(MediaType.APPLICATION_JSON)), res -> requestHandler.listenUpdateRequestStatus(res)
+                        .flatMap(re -> ServerResponse
+                                .status(re.getStatusCode())
+                                .headers(h -> h.addAll(re.getHeaders()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(re.getBody())));
     }
 }

@@ -7,8 +7,10 @@ import co.com.pedrorido.model.utils.PageResult;
 import reactor.core.publisher.Mono;
 
 import java.util.Set;
+import java.util.UUID;
 
 public interface IRequestApi {
     Mono<RequestDomain> createRequest(CreateRequestDomainDTO createRequest);
+    Mono<RequestDomain> updateStatusRequest(UUID requestId, Long statusId, boolean callEvent);
     Mono<PageResult<RequestBasicAdminInfo>> getListByStatus(Set<Long> statusEnumSet, int page, int size);
 }

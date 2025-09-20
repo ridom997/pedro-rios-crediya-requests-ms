@@ -3,7 +3,8 @@ package co.com.pedrorido.model.utils;
 public enum StatusEnum {
     PENDING(1L, "Pendiente de revisión"),
     APPROVED( 2L, "Aprobado"),
-    REJECTED( 3L, "Rechazado");
+    REJECTED( 3L, "Rechazado"),
+    MANUAL( 4L, "Revision manual");
 
     private Long id;
     private String description;
@@ -21,7 +22,7 @@ public enum StatusEnum {
         return description;
     }
 
-    public static StatusEnum fromId(String id) {
+    public static StatusEnum fromId(Long id) {
         for (StatusEnum status : StatusEnum.values()) {
             if (status.getId().equals(id)) {
                 return status;

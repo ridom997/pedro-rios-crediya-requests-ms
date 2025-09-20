@@ -27,16 +27,20 @@ cors:
   allowed-origins: "http://localhost:4200,http://localhost:8080"
 adapters:
   r2dbc:
-    host: "localhost"
-    port: 5432
-    database: "crediya"
-    schema: "public"
-    username: "admin"
-    password: "admin123"
+    host: "${DB_HOST:localhost}"
+    port: "${DB_PORT:5432}"
+    database: "${DB_NAME_LOAN:solicitudes_crediya_db}"
+    schema: "${DB_SCHEMA:public}"
+    username: "${DB_USERNAME:admin}"
+    password: "${DB_PASSWORD:admin123}"
 adapter:
   restconsumer:
     timeout: 5000
-    url: "http://localhost:8080"
+    url: "${ADAPTER_RESTCONSUMER_URL:http://localhost:8080}"
+  sqs:
+    region: "${AWS_REGION:us-east-1}"
+    requestStatusChangeQueueUrl: "https://sqs.us-east-1.amazonaws.com/339340413586/statusChangeCrediYa"
+    calculateDebtCapacityQueueUrl: "https://sqs.us-east-1.amazonaws.com/339340413586/debtCapacitySqs"
 resilience4j:
   circuitbreaker:
     instances:
@@ -58,7 +62,14 @@ resilience4j:
         slidingWindowSize: 10
         minimumNumberOfCalls: 10
         waitDurationInOpenState: "10s"
-
 security:
   jwt:
-    secret: "dev-very-long-secret-change-me-please-0123456789"
+    secret: "${SECURITY_JWT_SECRET:dev-very-long-secret-change-me-please-0123456789}"
+entrypoint:
+  sqs:
+    region: "us-east-1"
+    queueUrl: "https://sqs.us-east-1.amazonaws.com/339340413586/resultDebtCapacitySqs"
+    waitTimeSeconds: 20
+    maxNumberOfMessages: 10
+    visibilityTimeoutSeconds: 10
+    numberOfThreads: 1
