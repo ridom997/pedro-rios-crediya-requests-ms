@@ -5,11 +5,11 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 
 public class LoanMath {
+    private LoanMath() {}
 
     public static BigDecimal monthlyPayment(BigDecimal amount,
                                             BigDecimal monthlyRate,
-                                            int termMonths,
-                                            boolean effectiveAnnual) {
+                                            int termMonths) {
         if (amount == null || monthlyRate == null) {
             throw new IllegalArgumentException("amount y monthlyRate no pueden ser null");
         }
@@ -38,8 +38,7 @@ public class LoanMath {
         BigDecimal denominator = pow.subtract(one, mc);                // (1+i)^n - 1
 
         // División final a escala deseada
-        BigDecimal divide = numerator.divide(denominator, 2, RoundingMode.HALF_EVEN);
-        return divide;
+        return numerator.divide(denominator, 2, RoundingMode.HALF_EVEN);
     }
 
     public static BigDecimal dti(BigDecimal monthlyPayment, BigDecimal salary) {

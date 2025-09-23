@@ -62,7 +62,7 @@ public class RequestUseCase implements IRequestApi {
                                                                     BigDecimal maximumDebtCapacity = baseSalary.multiply(BigDecimal.valueOf(0.35));
                                                                     BigDecimal currentMonthlyDebt = sumMonthlyDebt;
                                                                     BigDecimal availableClientCapacity = maximumDebtCapacity.subtract(currentMonthlyDebt);
-                                                                    BigDecimal newMonthlyDebt = LoanMath.monthlyPayment(amount, BigDecimal.valueOf(interestRate), term, true);
+                                                                    BigDecimal newMonthlyDebt = LoanMath.monthlyPayment(amount, BigDecimal.valueOf(interestRate), term);
                                                                     RequestCalculateDebtMessage evt = new RequestCalculateDebtMessage(
                                                                             res.getId(), createRequest.getEmail(), null, amount, baseSalary, newMonthlyDebt, availableClientCapacity
                                                                     );
@@ -120,8 +120,7 @@ public class RequestUseCase implements IRequestApi {
                         BigDecimal monthly = LoanMath.monthlyPayment(
                                 current.getAmount(),
                                 BigDecimal.valueOf(lt.getInterestRate()),
-                                current.getTerm(),
-                                true
+                                current.getTerm()
                         );
                         current.setMonthlyDebt(monthly);
                         return current;
@@ -215,7 +214,7 @@ public class RequestUseCase implements IRequestApi {
                                 req.setBaseSalary(u.getBaseSalary());
                                 if (req.getMonthlyDebt() == null) {
                                     req.setMonthlyDebt(StatusEnum.APPROVED.getId().equals(req.getStatusId()) ?
-                                            LoanMath.monthlyPayment(req.getAmount(), BigDecimal.valueOf(req.getInterestRate()), req.getTerm(), true) : null);
+                                            LoanMath.monthlyPayment(req.getAmount(), BigDecimal.valueOf(req.getInterestRate()), req.getTerm()) : null);
                                 }
                             }
                         });

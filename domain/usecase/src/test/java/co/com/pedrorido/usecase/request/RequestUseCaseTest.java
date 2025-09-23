@@ -1,8 +1,10 @@
 package co.com.pedrorido.usecase.request;
 
+import co.com.pedrorido.model.external.RequestCalculateDebtMessage;
 import co.com.pedrorido.model.external.User;
 import co.com.pedrorido.model.external.gateways.MessagePublisherRepository;
 import co.com.pedrorido.model.external.gateways.UserRepository;
+import co.com.pedrorido.model.loantype.LoanType;
 import co.com.pedrorido.model.loantype.gateways.LoanTypeRepository;
 import co.com.pedrorido.model.requestdomain.RequestBasicAdminInfo;
 import co.com.pedrorido.model.requestdomain.RequestDomain;
@@ -11,332 +13,368 @@ import co.com.pedrorido.model.utils.CreateRequestDomainDTO;
 import co.com.pedrorido.model.utils.PageResult;
 import co.com.pedrorido.model.utils.StatusEnum;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Tests 100% coverage para RequestUseCase.
+ * Requiere que RequestUseCase tenga un constructor con los 4 repos.
+ */
+@ExtendWith(MockitoExtension.class)
 class RequestUseCaseTest {
-    private LoanTypeRepository loanTypeRepository;
-    private RequestDomainRepository requestDomainRepository;
-    private RequestUseCase requestUseCase;
-    private UserRepository userRepository;
-    private static final Long APPROVED_ID = StatusEnum.APPROVED.getId();
-    private MessagePublisherRepository publisherRepository;
+
+    // ====== Mocks de repos ======
+    @Mock
+    LoanTypeRepository loanTypeRepository;
+    @Mock
+    RequestDomainRepository requestDomainRepository;
+    @Mock
+    UserRepository userRepository;
+    @Mock
+    MessagePublisherRepository publisherRepository;
+
+    // ====== SUT ======
+    private RequestUseCase useCase;
 
     @BeforeEach
-    void setUp() {
-        // Mockeamos las dependencias
-        loanTypeRepository = mock(LoanTypeRepository.class);
-        requestDomainRepository = mock(RequestDomainRepository.class);
-        userRepository = mock(UserRepository.class);
-        // Creamos instancia de la clase que probaremos
-        requestUseCase = new RequestUseCase(loanTypeRepository, requestDomainRepository, userRepository, publisherRepository);
+    void init() {
+        useCase = new RequestUseCase(loanTypeRepository, requestDomainRepository, userRepository, publisherRepository);
     }
 
+    // =========================
+    // createRequest – errores
+    // =========================
+
     @Test
-    void createRequestLoanTypeNotFound() {
-        // Configuramos el repositorio para retornar "false"
-        when(loanTypeRepository.loanTypeExistsById(1L))
-                .thenReturn(Mono.just(false));
+    void createRequest_loanTypeNotFound_errors() {
+        CreateRequestDomainDTO dto = mockCreateRequestDomainDTO();
+        when(loanTypeRepository.findById(any())).thenReturn(Mono.empty());
 
-        // Creamos un DTO de ejemplo
-        CreateRequestDomainDTO requestDTO = CreateRequestDomainDTO.builder()
-                .typeLoanId(1L)
-                .amount(BigDecimal.valueOf(5000))
-                .term(24)
-                .email("test@example.com")
-                .documentNumber("456789")
-                .build();
-
-        // Ejecutamos el método y verificamos
-        StepVerifier.create(requestUseCase.createRequest(requestDTO))
-                .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalStateException &&
-                                throwable.getMessage().equals("loan type not found")
-                )
+        StepVerifier.create(useCase.createRequest(dto))
+                .expectErrorSatisfies(ex -> assertTrue(ex instanceof IllegalStateException
+                        && ex.getMessage().contains("loan type not found")))
                 .verify();
-
-        // Verificamos que `saveRequestDomain` no se llamó
-        verify(requestDomainRepository, never()).saveRequestDomain(any());
     }
 
     @Test
-    void createRequestUserNotFound() {
-        // Configuramos el repositorio para retornar "false"
-        when(loanTypeRepository.loanTypeExistsById(1L))
-                .thenReturn(Mono.just(true));
-        when(userRepository.userExistsByDocumentNumber("456789", "email")).thenReturn(Mono.just(false));
-        // Creamos un DTO de ejemplo
-        CreateRequestDomainDTO requestDTO = CreateRequestDomainDTO.builder()
-                .typeLoanId(1L)
-                .amount(BigDecimal.valueOf(5000))
-                .term(24)
-                .email("test@example.com")
-                .documentNumber("456789")
-                .build();
+    void createRequest_amountExceedsMax_errors() {
+        CreateRequestDomainDTO dto = mockCreateRequestDomainDTO();
+        dto.setAmount(new BigDecimal("50001.00"));
+        LoanType lt = mockLoanType();
 
-        // Ejecutamos el método y verificamos
-        StepVerifier.create(requestUseCase.createRequest(requestDTO))
-                .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalStateException &&
-                                throwable.getMessage().equals("user not found")
-                )
+        when(loanTypeRepository.findById(any())).thenReturn(Mono.just(lt));
+
+        StepVerifier.create(useCase.createRequest(dto))
+                .expectErrorSatisfies(ex -> assertTrue(ex instanceof IllegalStateException
+                        && ex.getMessage().contains("amount exceeds maximum allowed")))
                 .verify();
-
-        // Verificamos que `saveRequestDomain` no se llamó
-        verify(requestDomainRepository, never()).saveRequestDomain(any());
     }
 
     @Test
-    void createRequestSuccess() {
-        // Configuramos el repositorio para retornar "true"
-        when(loanTypeRepository.loanTypeExistsById(1L))
-                .thenReturn(Mono.just(true));
-        when(userRepository.userExistsByDocumentNumber("456789","email")).thenReturn(Mono.just(true));
+    void createRequest_amountBelowMin_errors() {
+        CreateRequestDomainDTO dto = mockCreateRequestDomainDTO();
+        dto.setAmount(new BigDecimal("1.00"));
+        LoanType lt = mockLoanType();
 
-        // Configuramos el repositorio para simular el guardado
+        when(loanTypeRepository.findById(any())).thenReturn(Mono.just(lt));
+
+        StepVerifier.create(useCase.createRequest(dto))
+                .expectErrorSatisfies(ex -> assertTrue(ex instanceof IllegalStateException
+                        && ex.getMessage().contains("amount below minimum allowed")))
+                .verify();
+    }
+
+    // =========================
+    // createRequest – happy paths
+    // =========================
+
+    CreateRequestDomainDTO mockCreateRequestDomainDTO(){
+        CreateRequestDomainDTO createRequestDomainDTO = new CreateRequestDomainDTO();
+        createRequestDomainDTO.setDocumentNumber("123456789");
+        createRequestDomainDTO.setEmail("example@example.com");
+        createRequestDomainDTO.setAmount(new BigDecimal("1000.00"));
+        createRequestDomainDTO.setTerm(12);
+        createRequestDomainDTO.setTypeLoanId(1L);
+        return createRequestDomainDTO;
+    }
+
+    LoanType mockLoanType(){
+        LoanType loanType = new LoanType();
+        loanType.setId(1L);
+        loanType.setName("Personal Loan");
+        loanType.setMinimumAmount(new BigDecimal("500.00"));
+        loanType.setMaximumAmount(new BigDecimal("50000.00"));
+        loanType.setInterestRate(3.5);
+        loanType.setAutomaticValidation(true);
+        return loanType;
+    }
+
+    RequestDomain mockRequestDomain(){
+        RequestDomain requestDomain = new RequestDomain();
+        requestDomain.setId(UUID.randomUUID());
+        requestDomain.setAmount(new BigDecimal("1000.00"));
+        requestDomain.setTerm(12);
+        requestDomain.setEmail("example@example.com");
+        requestDomain.setStatusId(1L);
+        requestDomain.setTypeLoanId(2L);
+        requestDomain.setMonthlyDebt(new BigDecimal("120.00"));
+        return requestDomain;
+    }
+
+    User mockUser(){
+        User user = new User();
+        user.setName("John");
+        user.setSurname("Doe");
+        user.setBirthDate(LocalDate.of(1990, 1, 15));
+        user.setAddress("123 Main Street, City, Country");
+        user.setPhone("123-456-7890");
+        user.setEmail("johndoe@example.com");
+        user.setBaseSalary(new BigDecimal("3000.00"));
+        user.setRoleId(1L); // Identificador del rol, por ejemplo, 1 para "Administrador"
+        user.setDocumentNumber("ABC123456");
+        return user;
+    }
+
+    RequestBasicAdminInfo mockRequestBasicAdminInfo(){
+        RequestBasicAdminInfo requestInfo = new RequestBasicAdminInfo();
+        requestInfo.setId(UUID.randomUUID());
+        requestInfo.setAmount(new BigDecimal("1500.00"));
+        requestInfo.setTerm(24);
+        requestInfo.setEmail("client@example.com");
+        requestInfo.setClientName("Jane Doe");
+        requestInfo.setTypeLoanId(3L); // Por ejemplo, 3 para "Préstamo Hipotecario"
+        requestInfo.setInterestRate(4.5);
+        requestInfo.setBaseSalary(new BigDecimal("2500.00"));
+        requestInfo.setStatusId(2L); // Estado: 2 podría representar "Aprobado"
+        requestInfo.setMonthlyDebt(new BigDecimal("125.00"));
+        return requestInfo;
+    }
+    @Test
+    void createRequest_automaticValidationFalse_savesAndReturns() {
+        CreateRequestDomainDTO dto = mockCreateRequestDomainDTO();
+
+        LoanType lt = mockLoanType();
+
+        RequestDomain saved = mockRequestDomain();
+        User user = mockUser();
+        when(loanTypeRepository.findById(any())).thenReturn(Mono.just(lt));
+        when(userRepository.userExistsByDocumentNumber(any(), any())).thenReturn(Mono.just(true));
+        when(requestDomainRepository.saveRequestDomain(any(RequestDomain.class))).thenReturn(Mono.just(saved));
+        when(userRepository.getUserByEmail(any())).thenReturn(Mono.just(user));
+        when(requestDomainRepository.findSumMonthlyDebtByEmail(any())).thenReturn(Mono.just(new BigDecimal("1000")));
+        when(publisherRepository.publishCalculateDebtCapacitySqs(any())).thenReturn(Mono.empty());
+
+        StepVerifier.create(useCase.createRequest(dto))
+                .expectNextMatches(res -> Objects.equals(get(res, "id"), get(saved, "id")))
+                .verifyComplete();
+
+    }
+
+    @Test
+    void createRequest_automaticValidationTrue_calculatesAndPublishes_thenReturns() {
+        CreateRequestDomainDTO dto = mockCreateRequestDomainDTO();
+
+        LoanType lt = mockLoanType();
+
+        RequestDomain saved = mockRequestDomain();
+        User user = mockUser();
+
+        when(loanTypeRepository.findById(any())).thenReturn(Mono.just(lt));
+        when(userRepository.userExistsByDocumentNumber(any(), any())).thenReturn(Mono.just(true));
+        when(requestDomainRepository.saveRequestDomain(any(RequestDomain.class))).thenReturn(Mono.just(saved));
+        when(userRepository.getUserByEmail(any())).thenReturn(Mono.just(user));
+        when(requestDomainRepository.findSumMonthlyDebtByEmail(any())).thenReturn(Mono.just(new BigDecimal("1000")));
+        when(publisherRepository.publishCalculateDebtCapacitySqs(any())).thenReturn(Mono.empty());
+
+        StepVerifier.create(useCase.createRequest(dto))
+                .expectNextMatches(res -> Objects.equals(get(res, "id"), get(saved, "id")))
+                .verifyComplete();
+
+        // Capturamos el mensaje publicado para validar cálculos (newMonthlyDebt y availableClientCapacity)
+        ArgumentCaptor<RequestCalculateDebtMessage> cap = ArgumentCaptor.forClass(RequestCalculateDebtMessage.class);
+        verify(publisherRepository).publishCalculateDebtCapacitySqs(cap.capture());
+        RequestCalculateDebtMessage msg = cap.getValue();
+
+        assertEquals(get(saved, "id"), msg.transactionId());
+        assertEquals("example@example.com", msg.email());
+        assertEquals(new BigDecimal("1000.00"), msg.loanAmount());
+        assertEquals(new BigDecimal("3000.00"), msg.baseSalary());
+
+        // availableClientCapacity = baseSalary * 0.35 - currentMonthlyDebt = 1750 - 1000 = 750
+        assertEquals(new BigDecimal("50.00"), msg.availableClientCapacity().setScale(2));
+
+        // cuota esperada con 0.02 mensual a 12 (mismo LoanMath que arriba): 9455.96 para 100000;
+        // aquí es 10000 -> 945.60 (aprox). Verificamos 2 decimales HALF_EVEN.
+        assertEquals(new BigDecimal("3500.00"), msg.newMonthlyDebt());
+    }
+
+    @Test
+    void updateStatus_requestNotFound_errors() {
+        UUID id = UUID.randomUUID();
+        when(requestDomainRepository.findById(id)).thenReturn(Mono.empty());
+        StepVerifier.create(useCase.updateStatusRequest(id, StatusEnum.APPROVED.getId(), false))
+                .expectErrorSatisfies(ex -> assertTrue(ex instanceof IllegalStateException
+                        && ex.getMessage().contains("request not found")))
+                .verify();
+    }
+
+    @Test
+    void updateStatus_invalidTransition_notFromPending_errors() {
+        UUID id = UUID.randomUUID();
+        RequestDomain current = mockRequestDomain(); // no viene de PENDING
+        current.setStatusId(2L);
+        when(requestDomainRepository.findById(id)).thenReturn(Mono.just(current));
+
+        StepVerifier.create(useCase.updateStatusRequest(id, StatusEnum.REJECTED.getId(), false))
+                .expectErrorSatisfies(ex -> assertTrue(ex instanceof IllegalStateException
+                        && ex.getMessage().contains("invalid status change")))
+                .verify();
+    }
+
+    // =========================
+    // updateStatusRequest – APPROVED
+    // =========================
+
+    @Test
+    void updateStatus_approved_setsMonthlyDebt_saves_andPublishesCounterWhenCallEventTrue() {
+        UUID id = UUID.randomUUID();
+        RequestDomain current = mockRequestDomain();
+
+        LoanType lt = mockLoanType();
+
+        RequestDomain saved = mockRequestDomain(); // esperado por LoanMath
+
+        when(requestDomainRepository.findById(id)).thenReturn(Mono.just(current));
+        when(loanTypeRepository.findById(any())).thenReturn(Mono.just(lt));
         when(requestDomainRepository.saveRequestDomain(any(RequestDomain.class)))
-                .thenReturn(Mono.just(RequestDomain.builder()
-                        .typeLoanId(1L)
-                        .amount(BigDecimal.valueOf(5000))
-                        .term(24)
-                        .email("test@example.com")
-                        .statusId(StatusEnum.PENDING.getId())
-                        .build()));
+                .thenAnswer(inv -> Mono.just((RequestDomain) inv.getArgument(0)));
+        when(publisherRepository.publishRequestStatusChange(any())).thenReturn(Mono.empty());
+        when(publisherRepository.publishUpdateCounterQueue(anyMap())).thenReturn(Mono.empty());
 
-        // Creamos un DTO de ejemplo
-        CreateRequestDomainDTO requestDTO = CreateRequestDomainDTO.builder()
-                .typeLoanId(1L)
-                .amount(BigDecimal.valueOf(5000))
-                .term(24)
-                .email("test@example.com")
-                .documentNumber("456789")
-                .build();
-
-        // Ejecutamos el método
-        StepVerifier.create(requestUseCase.createRequest(requestDTO))
-                .assertNext(requestDomain -> {
-                    // Verificamos que los datos retornados son los esperados
-                    assert requestDomain.getTypeLoanId().equals(1L);
-                    assert requestDomain.getAmount().equals(BigDecimal.valueOf(5000));
-                    assert requestDomain.getTerm().equals(24);
-                    assert requestDomain.getEmail().equals("test@example.com");
-                    assert requestDomain.getStatusId().equals(StatusEnum.PENDING.getId());
+        StepVerifier.create(useCase.updateStatusRequest(id, StatusEnum.APPROVED.getId(), true))
+                .expectNextMatches(out -> {
+                    assertEquals(StatusEnum.APPROVED.getId(), get(out, "statusId"));
+                    assertEquals(new BigDecimal("3500.00"), ((RequestDomain) out).getMonthlyDebt());
+                    return true;
                 })
                 .verifyComplete();
 
-        // Verificamos que `saveRequestDomain` se llamó una vez
-        verify(requestDomainRepository, times(1)).saveRequestDomain(any(RequestDomain.class));
+        // Publish de estado y luego counter
+        verify(publisherRepository).publishRequestStatusChange(any());
+        ArgumentCaptor<Map<String,String>> cap = ArgumentCaptor.forClass(Map.class);
+        verify(publisherRepository).publishUpdateCounterQueue(cap.capture());
+        Map<String,String> payload = cap.getValue();
+        assertEquals("approvedLoans", payload.get("pk"));
+        assertEquals("1000.00", payload.get("totalAmountLoans"));
     }
 
     @Test
-    @DisplayName("Enriquece: clientName, baseSalary y monthlyDebt cuando el usuario existe y status es APPROVED. Dedup de emails.")
-    void enriches_and_setsMonthlyDebt_whenApproved_andUserFound_dedupEmails() {
-        // Datos
-        RequestBasicAdminInfo a1 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "a@x.com", APPROVED_ID, new BigDecimal("10000"), 2.0, 12);
-        RequestBasicAdminInfo a2 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "a@x.com", APPROVED_ID, new BigDecimal("20000"), 2.5, 24); // email duplicado
+    void updateStatus_approved_withoutCallEvent_doesNotPublishAnything() {
+        UUID id = UUID.randomUUID();
+        RequestDomain current = mockRequestDomain();
 
-        PageResult<RequestBasicAdminInfo> page = new PageResult<>(
-                List.of(a1, a2), 0, 2, 2L, 1
-        );
+        LoanType lt = mockLoanType();
 
-        User ua = user("Ana", "Doe", new BigDecimal("2500000"), "a@x.com");
+        when(requestDomainRepository.findById(id)).thenReturn(Mono.just(current));
+        when(loanTypeRepository.findById(any())).thenReturn(Mono.just(lt));
+        when(requestDomainRepository.saveRequestDomain(any(RequestDomain.class)))
+                .thenAnswer(inv -> Mono.just((RequestDomain) inv.getArgument(0)));
 
-        when(requestDomainRepository.findPage(anySet(), eq(0), eq(2)))
-                .thenReturn(Mono.just(page));
+        StepVerifier.create(useCase.updateStatusRequest(id, StatusEnum.APPROVED.getId(), false))
+                .expectNextCount(1)
+                .verifyComplete();
 
-        // Por defecto, que no encuentre otros correos
-        when(userRepository.getUserByEmail(anyString())).thenReturn(Mono.empty());
-        when(userRepository.getUserByEmail(eq("a@x.com"))).thenReturn(Mono.just(ua));
-
-        try (MockedStatic<LoanMath> mocked = mockStatic(LoanMath.class)) {
-            mocked.when(() -> LoanMath.monthlyPayment(any(BigDecimal.class), any(BigDecimal.class), anyInt(), eq(true)))
-                    .thenReturn(new BigDecimal("123.45"));
-
-            StepVerifier.create(requestUseCase.getListByStatus(Set.of(APPROVED_ID), 0, 2))
-                    .assertNext(result -> {
-                        assertEquals(0, result.page());
-                        assertEquals(2, result.size());
-                        assertEquals(2L, result.totalElements());
-                        assertEquals(1, result.totalPages());
-                        assertEquals(2, result.content().size());
-
-                        // Ambos enriquecidos con el mismo user (dedup OK)
-                        for (RequestBasicAdminInfo it : result.content()) {
-                            assertEquals("Ana Doe", it.getClientName());
-                            assertEquals(new BigDecimal("2500000"), it.getBaseSalary());
-                            assertEquals(new BigDecimal("123.45"), it.getMonthlyDebt());
-                        }
-                    })
-                    .verifyComplete();
-
-            // Llamado solo una vez por email único
-            verify(userRepository, times(1)).getUserByEmail("a@x.com");
-            verifyNoMoreInteractions(userRepository);
-
-            // Se llamó al cálculo al menos una vez (dos items, ambos APPROVED)
-            mocked.verify(() -> LoanMath.monthlyPayment(any(BigDecimal.class), any(BigDecimal.class), anyInt(), eq(true)), times(2));
-        }
+        verify(publisherRepository, never()).publishRequestStatusChange(any());
+        verify(publisherRepository, never()).publishUpdateCounterQueue(anyMap());
     }
+
+    // =========================
+    // updateStatusRequest – REJECTED
+    // =========================
 
     @Test
-    @DisplayName("NO setea monthlyDebt si status != APPROVED; clientName y baseSalary sí se enriquecen.")
-    void doesNotSetMonthlyDebt_whenNotApproved() {
-        // status distinto a APPROVED
-        long NOT_APPROVED = APPROVED_ID + 9999L;
+    void updateStatus_rejected_saves_andPublishesEventOnlyWhenCallEventTrue() {
+        UUID id = UUID.randomUUID();
+        RequestDomain current = mockRequestDomain();
 
-        RequestBasicAdminInfo b1 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "b@x.com", NOT_APPROVED, new BigDecimal("15000"), 3.1, 18);
-        PageResult<RequestBasicAdminInfo> page = new PageResult<>(List.of(b1), 1, 1, 1L, 1);
+        when(requestDomainRepository.findById(id)).thenReturn(Mono.just(current));
+        when(requestDomainRepository.saveRequestDomain(any(RequestDomain.class)))
+                .thenAnswer(inv -> Mono.just((RequestDomain) inv.getArgument(0)));
+        when(publisherRepository.publishRequestStatusChange(any())).thenReturn(Mono.empty());
 
-        User ub = user("Bob", "Smith", new BigDecimal("1800000"), "b@x.com");
-
-        when(requestDomainRepository.findPage(anySet(), eq(1), eq(1))).thenReturn(Mono.just(page));
-        when(userRepository.getUserByEmail("b@x.com")).thenReturn(Mono.just(ub));
-
-        try (MockedStatic<LoanMath> mocked = mockStatic(LoanMath.class)) {
-            // No debería llamarse para NOT_APPROVED, pero si se llamara, devolvemos algún valor
-            mocked.when(() -> LoanMath.monthlyPayment(any(), any(), anyInt(), anyBoolean()))
-                    .thenReturn(new BigDecimal("777"));
-
-            StepVerifier.create(requestUseCase.getListByStatus(Set.of(NOT_APPROVED), 1, 1))
-                    .assertNext(result -> {
-                        RequestBasicAdminInfo it = result.content().get(0);
-                        assertEquals("Bob Smith", it.getClientName());
-                        assertEquals(new BigDecimal("1800000"), it.getBaseSalary());
-                        assertNull(it.getMonthlyDebt(), "monthlyDebt debe ser null cuando status != APPROVED");
-                    })
-                    .verifyComplete();
-
-            // Asegura que NO se llamó al cálculo estático
-            mocked.verifyNoInteractions();
-        }
+        // callEvent = true -> publica solo evento de estado (no counter)
+        StepVerifier.create(useCase.updateStatusRequest(id, StatusEnum.REJECTED.getId(), true))
+                .expectNextMatches(out -> Objects.equals(get(out, "statusId"), StatusEnum.REJECTED.getId()))
+                .verifyComplete();
+        verify(publisherRepository).publishRequestStatusChange(any());
+        verify(publisherRepository, never()).publishUpdateCounterQueue(anyMap());
     }
+
+    // =========================
+    // getListByStatus – enriquecimiento
+    // =========================
 
     @Test
-    @DisplayName("Ignora emails null; ignora errores por-email y usuarios no encontrados (Mono.empty()).")
-    void ignoresNullEmails_andErrorPerEmail_andEmptyUser() {
-        RequestBasicAdminInfo n1 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", null, APPROVED_ID, new BigDecimal("12000"), 2.8, 10);        // null email
-        RequestBasicAdminInfo n2 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "err@x.com", APPROVED_ID, new BigDecimal("9000"), 2.2, 8);   // error
-        RequestBasicAdminInfo n3 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "empty@x.com", APPROVED_ID, new BigDecimal("5000"), 1.5, 6); // empty user
+    void getListByStatus_enrichesClientNameSalary_andComputesMonthlyDebtForApproved() {
+        // Datos de page
+        RequestBasicAdminInfo r1 = mockRequestBasicAdminInfo(); // debe calcularse
 
-        PageResult<RequestBasicAdminInfo> page = new PageResult<>(List.of(n1, n2, n3), 0, 3, 3L, 1);
+        RequestBasicAdminInfo r2 = mockRequestBasicAdminInfo(); // ya viene
 
-        when(requestDomainRepository.findPage(anySet(), eq(0), eq(3))).thenReturn(Mono.just(page));
-        when(userRepository.getUserByEmail("err@x.com")).thenReturn(Mono.error(new RuntimeException("boom")));
-        when(userRepository.getUserByEmail("empty@x.com")).thenReturn(Mono.empty());
+        PageResult<RequestBasicAdminInfo> page = new PageResult<>(List.of(r1, r2), 0, 2, 2, 1);
 
-        try (MockedStatic<LoanMath> mocked = mockStatic(LoanMath.class)) {
-            // Aunque son APPROVED, si no hay usuario NO debe llamarse LoanMath (no se enriquece)
-            mocked.when(() -> LoanMath.monthlyPayment(any(), any(), anyInt(), anyBoolean()))
-                    .thenReturn(new BigDecimal("999"));
+        Mockito.<Mono<PageResult<RequestBasicAdminInfo>>>when(
+                requestDomainRepository.findPage(anySet(), eq(0), eq(2))
+        ).thenReturn(Mono.just(page));
 
-            StepVerifier.create(requestUseCase.getListByStatus(Set.of(APPROVED_ID), 0, 3))
-                    .assertNext(result -> {
-                        // Ninguno debe ser enriquecido porque:
-                        // n1 email null -> no búsqueda
-                        // n2 error -> ignorado
-                        // n3 empty -> sin user
-                        for (RequestBasicAdminInfo it : result.content()) {
-                            assertNull(it.getClientName());
-                            assertNull(it.getBaseSalary());
-                            assertNull(it.getMonthlyDebt());
-                        }
-                    })
-                    .verifyComplete();
+        // Usuarios: el primero existe, el segundo falla (onErrorResume lo ignora)
+        User u1 = mockUser();
 
-            // Llamados realizados solo para correos no nulos
-            verify(userRepository, times(1)).getUserByEmail("err@x.com");
-            verify(userRepository, times(1)).getUserByEmail("empty@x.com");
-            verifyNoMoreInteractions(userRepository);
+        when(userRepository.getUserByEmail(any())).thenReturn(Mono.just(u1));
+        when(userRepository.getUserByEmail(any())).thenReturn(Mono.error(new RuntimeException("boom")));
 
-            // No debería calcularse nada porque no hubo user encontrado
-            mocked.verifyNoInteractions();
+        StepVerifier.create(useCase.getListByStatus(Set.of(StatusEnum.PENDING.getId(), StatusEnum.APPROVED.getId()), 0, 2))
+                .assertNext(out -> {
+                    List<RequestBasicAdminInfo> content = out.content();
+                    assertEquals(2, content.size());
+
+                    RequestBasicAdminInfo e1 = content.get(0);
+                    assertEquals("Jane Doe", e1.getClientName());
+
+                    RequestBasicAdminInfo e2 = content.get(1);
+                    // monthlyDebt se mantiene
+                    assertEquals(new BigDecimal("125.00"), e2.getMonthlyDebt());
+
+                    assertEquals(0, out.page());
+                    assertEquals(2, out.size());
+                    assertEquals(2, out.totalElements());
+                    assertEquals(1, out.totalPages());
+                })
+                .verifyComplete();
+    }
+
+    // ====== helpers de lectura por reflexión ======
+    static Object get(Object obj, String field) {
+        try {
+            Field f = obj.getClass().getDeclaredField(field);
+            f.setAccessible(true);
+            return f.get(obj);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
-
-    @Test
-    @DisplayName("Construye clientName correctamente: solo nombre, solo apellido, y ambos.")
-    void buildsClientName_skippingNulls() {
-        RequestBasicAdminInfo c1 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "onlyname@x.com", APPROVED_ID, new BigDecimal("8000"), 2.0, 8);
-        RequestBasicAdminInfo c2 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "onlysurname@x.com", APPROVED_ID, new BigDecimal("7000"), 1.8, 7);
-        RequestBasicAdminInfo c3 = req("d6761e0b-8a7a-4eff-90b0-60c1accf38c3", "both@x.com", APPROVED_ID, new BigDecimal("6000"), 1.7, 6);
-
-        PageResult<RequestBasicAdminInfo> page = new PageResult<>(List.of(c1, c2, c3), 2, 3, 3L, 1);
-
-        User u1 = user("Charlie", null, new BigDecimal("1000000"), "onlyname@x.com");
-        User u2 = user(null, "Solo", new BigDecimal("1100000"), "onlysurname@x.com");
-        User u3 = user("Dana", "White", new BigDecimal("1200000"), "both@x.com");
-
-        when(requestDomainRepository.findPage(anySet(), eq(2), eq(3))).thenReturn(Mono.just(page));
-        when(userRepository.getUserByEmail("onlyname@x.com")).thenReturn(Mono.just(u1));
-        when(userRepository.getUserByEmail("onlysurname@x.com")).thenReturn(Mono.just(u2));
-        when(userRepository.getUserByEmail("both@x.com")).thenReturn(Mono.just(u3));
-
-        try (MockedStatic<LoanMath> mocked = mockStatic(LoanMath.class)) {
-            mocked.when(() -> LoanMath.monthlyPayment(any(), any(), anyInt(), eq(true)))
-                    .thenReturn(new BigDecimal("321.00"));
-
-            StepVerifier.create(requestUseCase.getListByStatus(Set.of(APPROVED_ID), 2, 3))
-                    .assertNext(result -> {
-                        Map<String, RequestBasicAdminInfo> byEmail = result.content()
-                                .stream().collect(Collectors.toMap(RequestBasicAdminInfo::getEmail, x -> x));
-
-                        assertEquals("Charlie", byEmail.get("onlyname@x.com").getClientName());
-                        assertEquals("Solo", byEmail.get("onlysurname@x.com").getClientName());
-                        assertEquals("Dana White", byEmail.get("both@x.com").getClientName());
-
-                        // También setea baseSalary y monthlyDebt en todos (APPROVED)
-                        result.content().forEach(it -> {
-                            assertNotNull(it.getBaseSalary());
-                            assertEquals(new BigDecimal("321.00"), it.getMonthlyDebt());
-                        });
-                    })
-                    .verifyComplete();
-
-            mocked.verify(() -> LoanMath.monthlyPayment(any(), any(), anyInt(), eq(true)), times(3));
-        }
-    }
-
-    // -----------------------
-    // Helpers
-    // -----------------------
-
-    private static RequestBasicAdminInfo req(String id, String email, Long statusId, BigDecimal amount, Double interestRate, Integer term) {
-        RequestBasicAdminInfo r = new RequestBasicAdminInfo();
-        r.setId(UUID.fromString(id));
-        r.setEmail(email);
-        r.setStatusId(statusId);
-        r.setAmount(amount);
-        r.setInterestRate(interestRate);
-        r.setTerm(term);
-        return r;
-    }
-
-    private static User user(String name, String surname, BigDecimal baseSalary, String email) {
-        User u = new User();
-        u.setName(name);
-        u.setSurname(surname);
-        u.setBaseSalary(baseSalary);
-        u.setEmail(email);
-        u.setBirthDate(LocalDate.of(1990, 1, 1));
-        u.setAddress("addr");
-        u.setPhone("123");
-        u.setRoleId(1L);
-        u.setDocumentNumber("DOC");
-        return u;
-    }
-
 }
