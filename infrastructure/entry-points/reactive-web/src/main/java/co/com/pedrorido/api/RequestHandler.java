@@ -44,33 +44,6 @@ public class RequestHandler {
     private final RequestUseCase requestUseCase;
     private final TransactionalOperator tx;
 
-    @Operation(
-            summary = "Guardar solicitud",
-            description = "Recibe un objeto CreateRequestDTO en el cuerpo de la solicitud, lo procesa y guarda la solicitud. Devuelve la información de la solicitud guardada junto con un mensaje de éxito.",
-            security = @SecurityRequirement(name = "bearerAuth"),
-            requestBody = @RequestBody(
-                    description = "Información de la solicitud a guardar",
-                    required = true,
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreateRequestDTO.class))
-            ),
-            responses = {
-                    @ApiResponse(
-                            responseCode = "201",
-                            description = "La solicitud se agregó correctamente.",
-                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = GeneralResponseDTO.class))
-                    ),
-                    @ApiResponse(
-                            responseCode = "400",
-                            description = "El cuerpo de la solicitud es inválido.",
-                            content = @Content
-                    ),
-                    @ApiResponse(
-                            responseCode = "409",
-                            description = "Fallo funcional.",
-                            content = @Content
-                    )
-            }
-    )
     public Mono<ResponseEntity<GeneralResponseDTO<RequestResponseDTO>>> listenSaveRequest(ServerRequest serverRequest) {
         return serverRequest.bodyToMono(CreateRequestDTO.class)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Request body is required")))
@@ -94,45 +67,6 @@ public class RequestHandler {
     }
 
 
-    @Operation(
-            summary = "Listar solicitudes",
-            description = "Obtiene una lista de solicitudes basándose en los parámetros proporcionados en la consulta. Devuelve los detalles de las solicitudes encontradas o un mensaje de error si ocurre algún problema.",
-            security = @SecurityRequirement(name = "bearerAuth"),
-            method = "GET",
-            parameters = {
-                    @Parameter(
-                            name = "page",
-                            description = "Número de página para la paginación (opcional)",
-                            in = ParameterIn.QUERY,
-                            required = false,
-                            schema = @Schema(type = "integer", defaultValue = "0")
-                    ),
-                    @Parameter(
-                            name = "size",
-                            description = "Tamaño de página para la paginación (opcional)",
-                            in = ParameterIn.QUERY,
-                            required = false,
-                            schema = @Schema(type = "integer", defaultValue = "10")
-                    )
-            },
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Lista de solicitudes obtenida con éxito.",
-                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = GeneralResponseDTO.class))
-                    ),
-                    @ApiResponse(
-                            responseCode = "400",
-                            description = "Parámetros de consulta inválidos.",
-                            content = @Content
-                    ),
-                    @ApiResponse(
-                            responseCode = "500",
-                            description = "Error interno del servidor.",
-                            content = @Content
-                    )
-            }
-    )
     public Mono<ServerResponse> listRequests(ServerRequest req) {
 
         int page = parseIntOrDefault(req.queryParam("page").orElse("0"), 0);
